@@ -2,14 +2,20 @@
   "name": "hmm",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "dependencies": {
+    "@tanstack/react-query": "^5.53.1",
+    "@tanstack/react-query-devtools": "^5.53.1",
     "@testing-library/jest-dom": "^5.17.0",
     "@testing-library/react": "^13.4.0",
     "@testing-library/user-event": "^13.5.0",
+    "@vitejs/plugin-react": "^4.3.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1",
-    "web-vitals": "^2.1.4"
+    "vite": "^5.4.2",
+    "web-vitals": "^2.1.4",
+    "zod": "^3.23.8"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -34,5 +40,11 @@
       "last 1 firefox version",
       "last 1 safari version"
     ]
+  },
+  "devDependencies": {
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.42",
+    "prettier": "^3.3.3",
+    "tailwindcss": "^3.4.10"
   }
 }
