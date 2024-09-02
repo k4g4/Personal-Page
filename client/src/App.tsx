@@ -1,12 +1,22 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { useGetFoo } from './api'
 
 export default function App() {
-  return <Inner />
+  const [n, setN] = useState(0)
+
+  return (
+    <div>
+      <button onClick={() => setN((n) => n + 1)}>Increment</button>
+      <Inner n={n} />
+    </div>
+  )
 }
 
-function Inner() {
-  const { pending, response } = useGetFoo({ bars: [], hello: true })
+function Inner({ n }: { n: number }) {
+  const { pending, response } = useGetFoo({
+    bars: [{ second: n }],
+    hello: true,
+  })
 
   if (pending) {
     return <div></div>

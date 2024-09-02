@@ -1,7 +1,8 @@
 mod api;
+mod payload;
 
 use anyhow::Result;
-use api::{Bar, Foo};
+use api::Foo;
 use axum::{
     extract::{Request, State},
     middleware::{self, Next},
@@ -9,6 +10,7 @@ use axum::{
     routing::get,
     Json, Router,
 };
+use payload::Payload;
 use std::{
     collections::HashMap,
     fs::FileType,
@@ -18,7 +20,7 @@ use std::{
     sync::Arc,
 };
 use tokio::{fs, net::TcpListener, process::Command, sync::Mutex};
-use tower_http::services::ServeDir;
+use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::{error, info};
 
 const ADDR: &str = "localhost:3000";
@@ -33,22 +35,18 @@ type ModTimesMap = HashMap<PathBuf, i64>;
 #[derive(Clone, Default)]
 struct ModTimes(Arc<Mutex<ModTimesMap>>);
 
+#[axum::debug_handler]
+async fn get_foo(Payload(foo): Payload<Foo>) -> impl IntoResponse {
+    println!("{foo:?}");
+    Json(foo.bars[0].clone())
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let api_routes = Router::new()
-        .route(
-            "/foo",
-            get(|| async {
-                Json(
-                    // Bar::First,
-                    // Bar::Second(42),
-                    Bar::Third {
-                        thing: "foo!".into(),
-                    },
-                )
-            }),
-        )
-        .route("/baz", get(|| async { "hello world" }));
+        .route("/foo", get(get_foo))
+        .route("/baz", get(|| async { "hello world" }))
+        .layer(TraceLayer::new_for_http());
     let routes = Router::new()
         .nest_service("/", ServeDir::new(DIST_DIR))
         .layer(middleware::from_fn_with_state(
@@ -57,7 +55,15 @@ async fn main() -> Result<()> {
         ))
         .nest("/api", api_routes);
 
-    tracing_subscriber::fmt().init();
+    // tracing_subscriber::fmt().init();
+    tracing::subscriber::set_global_default(tracing_subscriber::layer::SubscriberExt::with(
+        tracing_subscriber::Registry::default(),
+        tracing_subscriber::fmt::layer()
+            .with_target(false)
+            .with_level(true),
+    ))
+    .expect("Setting global default failed");
+
     axum::serve(TcpListener::bind(ADDR).await?, routes).await?;
 
     Ok(())

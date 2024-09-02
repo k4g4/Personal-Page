@@ -1,6 +1,6 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Serialize)]
+#[derive(Clone, Deserialize, Serialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum Bar {
     First,
@@ -8,7 +8,7 @@ pub enum Bar {
     Third { thing: String },
 }
 
-#[derive(Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Foo {
     pub bars: Vec<Bar>,
     pub hello: bool,

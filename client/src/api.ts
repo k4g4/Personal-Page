@@ -11,7 +11,7 @@ const error = z.object({ message: z.string() })
 const api =
   <Req>(method: 'get' | 'post' | 'delete', endpoint: Endpoint) =>
   <Res extends z.ZodTypeAny>(response: Res) =>
-  (req: Req) /*: z.infer<Res>*/ => {
+  (req: Req) => {
     const payload = JSON.stringify(req)
     const [resource, options] =
       method === 'post'
