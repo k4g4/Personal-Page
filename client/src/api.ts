@@ -17,6 +17,7 @@ const api =
       method === 'post'
         ? [`/api/${endpoint}`, { method, body: payload }]
         : [`/api/${endpoint}?${new URLSearchParams({ payload })}`, { method }]
+
     const { data, isSuccess } = useQuery({
       throwOnError: true,
       queryKey: [method, endpoint, payload],
@@ -33,6 +34,7 @@ const api =
         throw new Error(`[${res.status}]: ${res.statusText}`)
       },
     })
+
     return isSuccess
       ? ({ pending: false, response: data } as const)
       : ({ pending: true, response: null } as const)

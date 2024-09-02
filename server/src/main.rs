@@ -2,15 +2,12 @@ mod api;
 mod payload;
 
 use anyhow::Result;
-use api::Foo;
 use axum::{
     extract::{Request, State},
     middleware::{self, Next},
     response::IntoResponse,
-    routing::get,
-    Json, Router,
+    Router,
 };
-use payload::Payload;
 use std::{
     collections::HashMap,
     fs::FileType,
@@ -22,6 +19,7 @@ use std::{
 use tokio::{fs, net::TcpListener, process::Command, sync::Mutex};
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::{error, info};
+use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 const ADDR: &str = "localhost:3000";
 const DIST_DIR: &str = "../dist";
@@ -35,35 +33,19 @@ type ModTimesMap = HashMap<PathBuf, i64>;
 #[derive(Clone, Default)]
 struct ModTimes(Arc<Mutex<ModTimesMap>>);
 
-#[axum::debug_handler]
-async fn get_foo(Payload(foo): Payload<Foo>) -> impl IntoResponse {
-    println!("{foo:?}");
-    Json(foo.bars[0].clone())
-}
-
 #[tokio::main]
 async fn main() -> Result<()> {
-    let api_routes = Router::new()
-        .route("/foo", get(get_foo))
-        .route("/baz", get(|| async { "hello world" }))
-        .layer(TraceLayer::new_for_http());
     let routes = Router::new()
         .nest_service("/", ServeDir::new(DIST_DIR))
         .layer(middleware::from_fn_with_state(
             ModTimes::default(),
             check_recompile,
         ))
-        .nest("/api", api_routes);
+        .nest("/api", api::routes().layer(TraceLayer::new_for_http()));
 
-    // tracing_subscriber::fmt().init();
-    tracing::subscriber::set_global_default(tracing_subscriber::layer::SubscriberExt::with(
-        tracing_subscriber::Registry::default(),
-        tracing_subscriber::fmt::layer()
-            .with_target(false)
-            .with_level(true),
-    ))
-    .expect("Setting global default failed");
-
+    Registry::default()
+        .with(fmt::layer().with_level(true))
+        .init();
     axum::serve(TcpListener::bind(ADDR).await?, routes).await?;
 
     Ok(())
