@@ -39,16 +39,13 @@ async fn main() -> Result<()> {
         .route(
             "/foo",
             get(|| async {
-                Json(Foo {
-                    bars: vec![
-                        Bar::First,
-                        Bar::Second(42),
-                        Bar::Third {
-                            thing: "foo".into(),
-                        },
-                    ],
-                    hello: true,
-                })
+                Json(
+                    // Bar::First,
+                    // Bar::Second(42),
+                    Bar::Third {
+                        thing: "foo!".into(),
+                    },
+                )
             }),
         )
         .route("/baz", get(|| async { "hello world" }));
