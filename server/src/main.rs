@@ -23,8 +23,10 @@ use tracing::{error, info};
 
 const ADDR: &str = "localhost:3000";
 const DIST_DIR: &str = "../dist";
-const SRC_DIR: &str = "../src";
-const VITE_DIR: &str = "..";
+const CLIENT_DIR: &str = "../client";
+const SRC_DIR: &str = "../client/src";
+const INPUT_CSS: &str = "input.css";
+const INDEX_CSS: &str = "index.css";
 
 type ModTimesMap = HashMap<PathBuf, i64>;
 
@@ -104,7 +106,7 @@ async fn get_mod_times(path: impl AsRef<Path>, mut mod_times: ModTimesMap) -> Re
 async fn recompile() {
     async fn run(command: &str, args: impl IntoIterator<Item = &str>) {
         let res = Command::new(command)
-            .current_dir(VITE_DIR)
+            .current_dir(CLIENT_DIR)
             .args(args)
             .output()
             .await;
@@ -123,7 +125,11 @@ async fn recompile() {
     }
 
     info!("running tailwind...");
-    run("bun", ["tailwindcss", "-i", "input.css", "-o", "index.css"]).await;
+    run("bun", ["tailwindcss", "-i", INPUT_CSS, "-o", INDEX_CSS]).await;
     info!("running vite...");
-    run("bun", ["vite", "build"]).await;
+    run(
+        "bun",
+        ["vite", "build", "--outDir", DIST_DIR, "--emptyOutDir"],
+    )
+    .await;
 }

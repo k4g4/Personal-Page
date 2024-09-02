@@ -1,7 +1,10 @@
-import React, { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { foo } from './api'
+import React from 'react'
+import { useApi } from './api'
 
 export default function App() {
-  return <></>
+  return <Inner />
+}
+
+function Inner() {
+  return <div>{useApi()}</div>
 }
