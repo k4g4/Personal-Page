@@ -10,7 +10,11 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
       <App />
-      <ReactQueryDevtools initialIsOpen={false} />
+      <ReactQueryDevtools
+        initialIsOpen={true}
+        buttonPosition={'top-left'}
+        position={'top'}
+      />
     </QueryClientProvider>
-  </React.StrictMode>,
+  </React.StrictMode>
 )

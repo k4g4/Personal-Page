@@ -1,120 +1,60 @@
 mod api;
 mod payload;
+mod recompiler;
+
+use std::time::Duration;
 
 use anyhow::Result;
-use axum::{
-    extract::{Request, State},
-    middleware::{self, Next},
-    response::IntoResponse,
-    Router,
-};
-use std::{
-    collections::HashMap,
-    fs::FileType,
-    os::unix::fs::MetadataExt,
-    path::{Path, PathBuf},
-    process::Output,
-    sync::Arc,
-};
-use tokio::{fs, net::TcpListener, process::Command, sync::Mutex};
+use axum::Router;
+use clap::Parser;
+use futures::FutureExt;
+use recompiler::Recompiler;
+use tokio::{net::TcpListener, signal, time};
+use tower::util;
 use tower_http::{services::ServeDir, trace::TraceLayer};
-use tracing::{error, info};
+use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 const ADDR: &str = "localhost:3000";
+const MOD_TIMES: &str = "modtimes.json";
 const DIST_DIR: &str = "../dist";
 const CLIENT_DIR: &str = "../client";
 const SRC_DIR: &str = "../client/src";
 const INPUT_CSS: &str = "input.css";
 const INDEX_CSS: &str = "index.css";
 
-type ModTimesMap = HashMap<PathBuf, i64>;
-
-#[derive(Clone, Default)]
-struct ModTimes(Arc<Mutex<ModTimesMap>>);
+/// A personal webpage for practicing web development
+#[derive(clap::Parser)]
+struct Args {
+    /// Enable dev mode
+    #[arg(long, default_value_t = false)]
+    dev: bool,
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    let Args { dev } = Args::parse();
+    let recompiler = util::option_layer(if dev {
+        Some(Recompiler::load().await?)
+    } else {
+        None
+    });
+
     let routes = Router::new()
         .nest_service("/", ServeDir::new(DIST_DIR))
-        .layer(middleware::from_fn_with_state(
-            ModTimes::default(),
-            check_recompile,
-        ))
+        .layer(recompiler)
         .nest("/api", api::routes().layer(TraceLayer::new_for_http()));
 
-    Registry::default()
-        .with(fmt::layer().with_level(true))
-        .init();
-    axum::serve(TcpListener::bind(ADDR).await?, routes).await?;
+    Registry::default().with(fmt::layer()).init();
+    info!(
+        "running server in {} mode on {ADDR}",
+        if dev { "dev" } else { "production " }
+    );
+
+    axum::serve(TcpListener::bind(ADDR).await?, routes)
+        .with_graceful_shutdown(signal::ctrl_c().map(|_| ()))
+        .await?;
+    time::sleep(Duration::from_millis(50)).await;
 
     Ok(())
-}
-
-async fn check_recompile(
-    State(ModTimes(mod_times)): State<ModTimes>,
-    req: Request,
-    next: Next,
-) -> impl IntoResponse {
-    match get_mod_times(SRC_DIR, Default::default()).await {
-        Err(error) => error!("{error}"),
-
-        Ok(current_mod_times) => {
-            let mut mod_times = mod_times.lock().await;
-
-            if *mod_times != current_mod_times {
-                *mod_times = current_mod_times;
-                recompile().await;
-            }
-        }
-    }
-
-    next.run(req).await
-}
-
-async fn get_mod_times(path: impl AsRef<Path>, mut mod_times: ModTimesMap) -> Result<ModTimesMap> {
-    let mut dir = fs::read_dir(path).await?;
-
-    while let Some(entry) = dir.next_entry().await? {
-        let file_type = entry.file_type().await;
-
-        if file_type.as_ref().is_ok_and(FileType::is_dir) {
-            mod_times = Box::pin(get_mod_times(entry.path(), mod_times)).await?;
-        } else if file_type.as_ref().is_ok_and(FileType::is_file) {
-            *mod_times.entry(entry.path()).or_default() = entry.metadata().await?.mtime();
-        }
-    }
-
-    Ok(mod_times)
-}
-
-async fn recompile() {
-    async fn run(command: &str, args: impl IntoIterator<Item = &str>) {
-        let res = Command::new(command)
-            .current_dir(CLIENT_DIR)
-            .args(args)
-            .output()
-            .await;
-
-        match res {
-            Err(error) => error!("{error}"),
-            Ok(Output { stdout, stderr, .. }) => {
-                if !stdout.is_empty() {
-                    info!("{}", String::from_utf8_lossy(&stdout));
-                }
-                if !stderr.is_empty() {
-                    error!("{}", String::from_utf8_lossy(&stderr));
-                }
-            }
-        }
-    }
-
-    info!("running tailwind...");
-    run("bun", ["tailwindcss", "-i", INPUT_CSS, "-o", INDEX_CSS]).await;
-    info!("running vite...");
-    run(
-        "bun",
-        ["vite", "build", "--outDir", DIST_DIR, "--emptyOutDir"],
-    )
-    .await;
 }

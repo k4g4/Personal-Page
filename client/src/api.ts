@@ -25,7 +25,7 @@ const api =
         const res = await fetch(resource, { signal, ...options })
         if (res.ok) {
           return response.parse(
-            res.body ? await res.json() : null,
+            res.body ? await res.json() : null
           ) as z.infer<Res>
         }
         if (res.status === 400) {

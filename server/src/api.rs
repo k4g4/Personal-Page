@@ -3,18 +3,27 @@ use serde::{Deserialize, Serialize};
 
 use crate::payload::Payload;
 
-#[derive(Clone, Deserialize, Serialize, Debug)]
-#[serde(rename_all = "camelCase")]
-pub enum Bar {
-    First,
-    Second(u32),
-    Third { thing: String },
+macro_rules! schema {
+    ($( $name:item )*) => {
+        $(
+            #[derive(Clone, Deserialize, Serialize, Debug)]
+            #[serde(rename_all = "camelCase")]
+            $name
+        )*
+    }
 }
 
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Foo {
-    pub bars: Vec<Bar>,
-    pub hello: bool,
+schema! {
+    pub enum Bar {
+        First,
+        Second(u32),
+        Third { thing: String },
+    }
+
+    pub struct Foo {
+        pub bars: Vec<Bar>,
+        pub hello: bool,
+    }
 }
 
 pub fn routes() -> Router {
