@@ -31,7 +31,9 @@ const api =
         if (res.status === 400) {
           throw new Error(error.parse(await res.json()).message)
         }
-        throw new Error(`[${res.status}]: ${res.statusText}`)
+        throw new Error(
+          `[${res.status}: ${res.statusText}] ${await res.text()}`
+        )
       },
     })
 

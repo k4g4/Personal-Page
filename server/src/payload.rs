@@ -1,5 +1,3 @@
-use std::{future::Future, pin::Pin};
-
 use anyhow::Result;
 use axum::{
     extract::{
@@ -13,6 +11,7 @@ use axum::{
 use futures::FutureExt;
 use serde::{de::DeserializeOwned, Deserialize};
 use serde_json::error::Error as SerdeJsonError;
+use std::{future::Future, pin::Pin};
 
 pub struct Payload<T>(pub T);
 

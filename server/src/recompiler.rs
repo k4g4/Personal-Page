@@ -119,6 +119,7 @@ async fn recompile() {
         let res = Command::new(command)
             .current_dir(crate::CLIENT_DIR)
             .args(args)
+            .env("NODE_ENV", "development")
             .output()
             .await;
 
