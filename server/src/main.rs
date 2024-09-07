@@ -2,15 +2,14 @@ mod api;
 mod payload;
 mod recompiler;
 
-use std::time::Duration;
-
 use anyhow::Result;
 use axum::Router;
+use axum_extra::middleware;
 use clap::Parser;
 use futures::{future::OptionFuture, FutureExt};
 use recompiler::Recompiler;
+use std::time::Duration;
 use tokio::{net::TcpListener, signal, time};
-use tower::util;
 use tower_http::{services::ServeDir, trace::TraceLayer};
 use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
@@ -38,10 +37,10 @@ async fn main() -> Result<()> {
 
     let routes = Router::new()
         .nest_service("/", ServeDir::new(DIST_DIR))
-        .layer(util::option_layer(
+        .layer(middleware::option_layer(
             OptionFuture::from(recompiler).await.transpose()?,
         ))
-        .nest("/api", api::routes()?.layer(TraceLayer::new_for_http()));
+        .nest("/api", api::routes().layer(TraceLayer::new_for_http()));
 
     Registry::default().with(fmt::layer()).init();
     info!(

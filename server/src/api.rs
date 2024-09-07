@@ -1,12 +1,9 @@
-use anyhow::{bail, Result};
 use axum::{
-    extract::{FromRequest, Query, Request},
-    http::{Method, StatusCode},
-    response::{IntoResponse, Response},
-    routing, Json, Router,
+    extract::{Query, Request},
+    http::Method,
+    Json, Router,
 };
 use serde::{Deserialize, Serialize};
-use std::{future::Future, pin::Pin};
 
 const GET: Method = Method::GET;
 const POST: Method = Method::POST;
@@ -19,6 +16,23 @@ macro_rules! schema {
             #[serde(rename_all = "camelCase")]
             $name
         )*
+    }
+}
+
+macro_rules! routes {
+    ($($method:ident $endpoint:ident$args:tt -> $resty:ty $res:block)*) => {
+        pub fn routes() -> Router {
+            Router::new()
+            $(
+                .route(
+                    concat!("/", stringify!($endpoint)),
+                    axum::routing::$method({
+                        async fn $endpoint$args -> $resty $res
+                        $endpoint
+                    }),
+                )
+            )*
+        }
     }
 }
 
@@ -35,84 +49,21 @@ schema! {
     }
 }
 
-macro_rules! apis {
-    ($($method:ident $endpoint:ident($req:ident: $reqty:ty) -> $resty:ty $res:block)*) => {
-        struct Api {
-            method: Method,
-            endpoint: &'static str,
-            handler: fn(Request) -> Pin<Box<dyn Future<Output = Response> + Send>>,
-        }
-
-        #[derive(Deserialize)]
-        struct ApiQuery {
-            payload: String,
-        }
-
-        static APIS: [Api; {0 $(+ {let _ = $method; 1})*}] = [
-            $({
-                async fn $endpoint(req: Request) -> Response {
-                    if req.method() != $method {
-                        return (StatusCode::INTERNAL_SERVER_ERROR, "Unknown error").into_response();
-                    }
-                    let $req = if $method == POST {
-                        match Json::<$reqty>::from_request(req, &()).await {
-                            Ok(Json(req)) => req,
-                            Err(reject) => return reject.into_response(),
-                        }
-                    } else {
-                        match Query::<ApiQuery>::from_request(req, &()).await {
-                            Ok(Query(ApiQuery { payload })) => {
-                                match serde_json::from_str(&payload) {
-                                    Ok(req) => req,
-                                    Err(error) => return (
-                                        StatusCode::UNPROCESSABLE_ENTITY,
-                                        format!("Failed to deserialize the JSON payload: {error}"),
-                                    ).into_response()
-                                }
-                            }
-                            Err(reject) => return reject.into_response(),
-                        }
-                    };
-                    Json::<$resty>($res).into_response()
-                }
-                Api {
-                    method: $method,
-                    endpoint: concat!("/", stringify!($endpoint)),
-                    handler: |req| Box::pin(async { $endpoint(req).await }),
-                }
-            }),*
-        ];
-    };
-}
-
-apis! {
-    GET foo(foo: Foo) -> Bar {
+routes! {
+    get foo(foo: Query<Foo>, _bar: Request) -> Json<Bar> {
         println!("{foo:?}");
-        foo.bars[0].clone()
+        foo.bars[0].clone().into()
     }
 
-    GET bar(bar: Bar) -> Bar {
+    get bar(bar: Json<Bar>) -> Json<Bar> {
         bar
     }
 
-    POST bar(bar: Bar) -> Bar {
+    post bar(bar: Json<Bar>) -> Json<Bar> {
         bar
     }
-}
 
-pub fn routes() -> Result<Router> {
-    APIS.iter().try_fold(Router::new(), |router, api| {
-        Ok(router.route(
-            api.endpoint,
-            if api.method == GET {
-                routing::get(api.handler)
-            } else if api.method == POST {
-                routing::post(api.handler)
-            } else if api.method == DELETE {
-                routing::delete(api.handler)
-            } else {
-                bail!("unexpected method");
-            },
-        ))
-    })
+    post foo(bar: Json<Bar>) -> Json<Foo> {
+        Json(Foo { bars: vec![bar.0], hello: true })
+    }
 }
