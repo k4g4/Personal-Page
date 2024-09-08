@@ -27,17 +27,28 @@ const api =
   <Req extends {}>(method: 'get' | 'post' | 'delete', endpoint: Endpoint) =>
   <Res extends z.ZodTypeAny>(response: Res) =>
   (req: Req) => {
-    const stringReq = JSON.stringify(req)
-    const [resource, options] =
-      method === 'post'
-        ? [`/api/${endpoint}`, { method, body: stringReq }]
-        : [`/api/${endpoint}?${new URLSearchParams(req)}`, { method }]
+    const body = JSON.stringify(req)
+    const token = localStorage.getItem('token')
+
+    let headers = new Headers()
+    let url = `/api/${endpoint}`
+    let options: Parameters<typeof fetch>[1] = { method }
+    if (method === 'post') {
+      headers.append('Content-Type', 'application/json')
+      options = { body, ...options }
+    } else {
+      url = `${url}?${new URLSearchParams(req)}`
+    }
+    if (token) {
+      headers.append('Authorization', `Bearer ${token}`)
+    }
+    options = { headers, ...options }
 
     const { data, isSuccess } = useQuery({
       throwOnError: true,
-      queryKey: [method, endpoint, stringReq],
+      queryKey: [method, endpoint, body],
       queryFn: async ({ signal }) => {
-        const res = await fetch(resource, { signal, ...options })
+        const res = await fetch(url, { signal, ...options })
         if (res.ok) {
           return response.parse(
             res.body ? await res.json() : null
@@ -66,4 +77,4 @@ export type Foo = {
   hello: boolean
 }
 
-export const useGetFoo = api<Foo>('get', 'foo')(bar)
+export const usePostFoo = api<Foo>('post', 'foo')(bar)

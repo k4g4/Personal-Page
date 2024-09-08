@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { useGetFoo } from './api'
+import { usePostFoo } from './api'
 
 export default function App() {
   const [n, setN] = useState(0)
@@ -13,7 +13,7 @@ export default function App() {
 }
 
 function Inner({ n }: { n: number }) {
-  const { pending, response } = useGetFoo({
+  const { pending, response } = usePostFoo({
     bars: [{ second: n }],
     hello: true,
   })
