@@ -1,18 +1,12 @@
-use axum::{
-    extract::{Query, Request},
-    http::Method,
-    Json, Router,
-};
+use axum::{Json, Router};
 use serde::{Deserialize, Serialize};
 
-const GET: Method = Method::GET;
-const POST: Method = Method::POST;
-const DELETE: Method = Method::DELETE;
+type Result<T> = axum::response::Result<Json<T>>;
 
 macro_rules! schema {
     ($( $name:item )*) => {
         $(
-            #[derive(Clone, Deserialize, Serialize, Debug)]
+            #[derive(Clone, Serialize, Deserialize, Debug)]
             #[serde(rename_all = "camelCase")]
             $name
         )*
@@ -20,14 +14,15 @@ macro_rules! schema {
 }
 
 macro_rules! routes {
-    ($($method:ident $endpoint:ident$args:tt -> $resty:ty $res:block)*) => {
+    ($($method:ident $endpoint:ident$args:tt -> $ret:ty $body:block)*) => {
         pub fn routes() -> Router {
             Router::new()
             $(
                 .route(
                     concat!("/", stringify!($endpoint)),
                     axum::routing::$method({
-                        async fn $endpoint$args -> $resty $res
+                        async fn $endpoint$args -> $ret
+                        $body
                         $endpoint
                     }),
                 )
@@ -50,20 +45,20 @@ schema! {
 }
 
 routes! {
-    get foo(foo: Query<Foo>, _bar: Request) -> Json<Bar> {
+    get foo(Json(foo): Json<Foo>) -> Result<Bar> {
         println!("{foo:?}");
-        foo.bars[0].clone().into()
+        Ok(foo.bars[0].clone().into())
     }
 
-    get bar(bar: Json<Bar>) -> Json<Bar> {
-        bar
+    get bar(bar: Json<Bar>) -> Result<Bar> {
+        Ok(bar)
     }
 
-    post bar(bar: Json<Bar>) -> Json<Bar> {
-        bar
+    post bar(bar: Json<Bar>) -> Result<Bar> {
+        Ok(bar)
     }
 
-    post foo(bar: Json<Bar>) -> Json<Foo> {
-        Json(Foo { bars: vec![bar.0], hello: true })
+    post foo(bar: Json<Bar>) -> Result<Foo> {
+        Ok(Json(Foo { bars: vec![bar.0], hello: true }))
     }
 }

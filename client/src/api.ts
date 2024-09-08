@@ -3,24 +3,39 @@ import { useQuery } from '@tanstack/react-query'
 
 type Endpoint = 'foo' | 'bar'
 
-const error = z.object({ message: z.string() })
+class ApiError extends Error {
+  readonly status: number
+  readonly statusText: string
+  readonly message: string
+
+  constructor(status: number, statusText: string, message: string) {
+    super()
+    this.status = status
+    this.statusText = statusText
+    this.message = message
+  }
+
+  toString() {
+    return `[${this.status}: ${this.statusText}] ${this.message}`
+  }
+}
 
 // Params: <Request Type>(Method, Endpoint)(Response Schema)
 // Return: (Request Type) => { pending: true, response: Response Type } | { pending: false, response: null }
-// Throws: Error | ZodError
+// Throws: Error | ZodError | ApiError
 const api =
-  <Req>(method: 'get' | 'post' | 'delete', endpoint: Endpoint) =>
+  <Req extends {}>(method: 'get' | 'post' | 'delete', endpoint: Endpoint) =>
   <Res extends z.ZodTypeAny>(response: Res) =>
   (req: Req) => {
-    const payload = JSON.stringify(req)
+    const stringReq = JSON.stringify(req)
     const [resource, options] =
       method === 'post'
-        ? [`/api/${endpoint}`, { method, body: payload }]
-        : [`/api/${endpoint}?${new URLSearchParams({ payload })}`, { method }]
+        ? [`/api/${endpoint}`, { method, body: stringReq }]
+        : [`/api/${endpoint}?${new URLSearchParams(req)}`, { method }]
 
     const { data, isSuccess } = useQuery({
       throwOnError: true,
-      queryKey: [method, endpoint, payload],
+      queryKey: [method, endpoint, stringReq],
       queryFn: async ({ signal }) => {
         const res = await fetch(resource, { signal, ...options })
         if (res.ok) {
@@ -28,12 +43,7 @@ const api =
             res.body ? await res.json() : null
           ) as z.infer<Res>
         }
-        if (res.status === 400) {
-          throw new Error(error.parse(await res.json()).message)
-        }
-        throw new Error(
-          `[${res.status}: ${res.statusText}] ${await res.text()}`
-        )
+        throw new ApiError(res.status, res.statusText, await res.text())
       },
     })
 

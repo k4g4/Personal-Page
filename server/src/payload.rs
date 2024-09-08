@@ -4,26 +4,19 @@ use axum::{
         rejection::{JsonRejection, QueryRejection},
         FromRequest, Query, Request,
     },
-    http::{Method, StatusCode},
+    http::Method,
     response::{IntoResponse, Response},
     Json,
 };
 use futures::FutureExt;
-use serde::{de::DeserializeOwned, Deserialize};
-use serde_json::error::Error as SerdeJsonError;
+use serde::de::DeserializeOwned;
 use std::{future::Future, pin::Pin};
 
 pub struct Payload<T>(pub T);
 
-#[derive(Deserialize)]
-struct ApiQuery {
-    payload: String,
-}
-
 pub enum PayloadRejection {
     Json(JsonRejection),
     Query(QueryRejection),
-    QueryPayloadDeser(SerdeJsonError),
 }
 
 impl IntoResponse for PayloadRejection {
@@ -31,11 +24,6 @@ impl IntoResponse for PayloadRejection {
         match self {
             PayloadRejection::Json(rej) => rej.into_response(),
             PayloadRejection::Query(rej) => rej.into_response(),
-            PayloadRejection::QueryPayloadDeser(err) => (
-                StatusCode::UNPROCESSABLE_ENTITY,
-                format!("Failed to deserialize the JSON payload: {err}"),
-            )
-                .into_response(),
         }
     }
 }
@@ -58,12 +46,11 @@ impl<T: DeserializeOwned, S: Send + Sync> FromRequest<S> for Payload<T> {
                     .map_err(PayloadRejection::Json)
             }))
         } else {
-            let query_future = Query::<ApiQuery>::from_request(req, state);
+            let query_future = Query::from_request(req, state);
             Box::pin(query_future.map(|res| {
-                let query = res.map_err(PayloadRejection::Query)?;
-                serde_json::from_str(&query.0.payload)
+                res.map(|query| query.0)
                     .map(Self)
-                    .map_err(PayloadRejection::QueryPayloadDeser)
+                    .map_err(PayloadRejection::Query)
             }))
         }
     }
