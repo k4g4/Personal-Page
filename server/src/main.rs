@@ -1,5 +1,6 @@
 mod api;
 mod extractors;
+mod jwt;
 mod models;
 mod recompiler;
 
@@ -35,6 +36,8 @@ struct Args {
 async fn main() -> Result<()> {
     let Args { dev } = Args::parse();
     let recompiler = dev.then(Recompiler::load);
+
+    dotenvy::dotenv()?;
 
     let routes = Router::new()
         .nest_service("/", ServeDir::new(DIST_DIR))

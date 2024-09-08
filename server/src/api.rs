@@ -1,4 +1,5 @@
-use axum::{Json, Router};
+use crate::{extractors::user::User, jwt::Claim, models::ids::UserId};
+use axum::{http::StatusCode, Json, Router};
 use serde::{Deserialize, Serialize};
 
 type Result<T> = axum::response::Result<Json<T>>;
@@ -32,33 +33,38 @@ macro_rules! routes {
 }
 
 schema! {
-    pub enum Bar {
+    struct LoginReq {
+        username: String,
+        password: String,
+    }
+
+    struct LoginRes {
+        token: String,
+    }
+
+    enum Bar {
         First,
         Second(u32),
         Third { thing: String },
     }
 
-    pub struct Foo {
+    struct Foo {
         pub bars: Vec<Bar>,
         pub hello: bool,
     }
 }
 
 routes! {
-    get foo(Json(foo): Json<Foo>) -> Result<Bar> {
-        println!("{foo:?}");
+    post login(Json(_login): Json<LoginReq>) -> Result<LoginRes> {
+        let id = UserId::default();
+        Claim::new(id)
+            .encode()
+            .map(|token| Json(LoginRes { token }))
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into())
+    }
+
+    post foo(User(user): User, Json(foo): Json<Foo>) -> Result<Bar> {
+        println!("{user}: {foo:?}");
         Ok(foo.bars[0].clone().into())
-    }
-
-    get bar(bar: Json<Bar>) -> Result<Bar> {
-        Ok(bar)
-    }
-
-    post bar(bar: Json<Bar>) -> Result<Bar> {
-        Ok(bar)
-    }
-
-    post foo(bar: Json<Bar>) -> Result<Foo> {
-        Ok(Json(Foo { bars: vec![bar.0], hello: true }))
     }
 }

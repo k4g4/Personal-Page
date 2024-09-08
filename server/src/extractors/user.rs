@@ -1,4 +1,4 @@
-use crate::models::{ids::UserId, jwt::Claim};
+use crate::{jwt::Claim, models::ids::UserId};
 use axum::{
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},
@@ -8,9 +8,7 @@ use axum_extra::TypedHeader;
 use headers::{authorization::Bearer, Authorization};
 use std::{future::Future, pin::Pin};
 
-struct User {
-    id: UserId,
-}
+pub struct User(pub UserId);
 
 impl<S> FromRequestParts<S> for User {
     type Rejection = (StatusCode, &'static str);
@@ -29,11 +27,11 @@ impl<S> FromRequestParts<S> for User {
                 .extract::<TypedHeader<Authorization<Bearer>>>()
                 .await
                 .map_err(|_| (StatusCode::UNAUTHORIZED, "No Bearer auth header"))?;
-            let claim: Claim = bearer
-                .token()
-                .parse()
-                .map_err(|_| (StatusCode::UNAUTHORIZED, "Invalid auth header"))?;
-            Ok(Self { id: claim.sub })
+            let claim = Claim::decode(bearer.token()).map_err(|e| {
+                println!("{e:?}");
+                (StatusCode::UNAUTHORIZED, "Invalid auth header")
+            })?;
+            Ok(Self(claim.sub))
         })
     }
 }

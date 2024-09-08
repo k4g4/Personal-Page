@@ -3,3 +3,4 @@
 /dist
 /server/target
 /server/modtimes.json
+/server/.env
