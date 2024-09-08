@@ -31,11 +31,12 @@ impl IntoResponse for PayloadRejection {
 impl<T: DeserializeOwned, S: Send + Sync> FromRequest<S> for Payload<T> {
     type Rejection = PayloadRejection;
 
-    fn from_request<'state: 'fut, 'fut>(
+    fn from_request<'s, 'fut>(
         req: Request,
-        state: &'state S,
+        state: &'s S,
     ) -> Pin<Box<dyn Future<Output = Result<Self, Self::Rejection>> + Send + 'fut>>
     where
+        's: 'fut,
         Self: 'fut,
     {
         if req.method() == Method::POST {
