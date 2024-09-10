@@ -1,21 +1,42 @@
-import {
-  useState,
-  type ChangeEvent,
-  type Dispatch,
-  type SetStateAction,
-} from 'react'
-import { usePostLogin, usePostLogout } from './api'
+import { MAX_FIELD_LEN, usePostLogin, usePostLogout } from './api'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-
-const MAX_USERNAME_LEN = 20
-const MAX_PASSWORD_LEN = 20
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useForm } from 'react-hook-form'
+import { type Login, login } from './api'
+import { Button } from '@/src/utils/button'
+import { Input } from '@/src/utils/input'
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/src/utils/form'
+import { useEffect, useState } from 'react'
 
 export default function App() {
+  const [darkMode, setDarkMode] = useState(false)
+
+  useEffect(() => {
+    window.matchMedia &&
+      window.matchMedia('(prefers-color-scheme: dark)').matches &&
+      document.documentElement.classList.add('dark')
+  }, [])
+
+  const onToggleDarkMode = () => {
+    setDarkMode(!darkMode)
+    document.documentElement.classList.toggle('dark')
+  }
+
   return (
     <div>
+      <div className='fixed top-4 right-4'>
+        <Button onClick={onToggleDarkMode}>💡</Button>
+      </div>
       <Routes>
         <Route path='/' element={<Home />} />
-        <Route path='/login' element={<Login />} />
+        <Route path='/login' element={<LoginPage />} />
       </Routes>
     </div>
   )
@@ -43,65 +64,66 @@ function Home() {
   )
 }
 
-function Login() {
+function LoginPage() {
   const { mutate: postLogin } = usePostLogin()
   const { state } = useLocation()
   const navigate = useNavigate()
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
+  const form = useForm<Login>({
+    resolver: zodResolver(login),
+    defaultValues: { username: '', password: '' },
+  })
 
-  const onFieldChange = (
-    setField: Dispatch<SetStateAction<string>>,
-    maxLen: number,
-    regex: RegExp
-  ) => {
-    return (event: ChangeEvent<HTMLInputElement>) => {
-      const field = event.target.value
-      if (field.length <= maxLen && regex.test(field)) {
-        setField(field)
-      }
-    }
+  const onSubmit = (login: Login) => {
+    postLogin(login, {
+      onSuccess: ({ token }) => {
+        localStorage.setItem('token', token)
+        navigate(state?.from?.pathname || '/', { replace: true })
+      },
+    })
   }
 
-  const onUsernameChange = onFieldChange(
-    setUsername,
-    MAX_USERNAME_LEN,
-    /^[a-zA-Z0-9_]*$/
-  )
-  const onPasswordChange = onFieldChange(
-    setPassword,
-    MAX_PASSWORD_LEN,
-    /^[^ ]*$/
-  )
-
   return (
-    <div>
-      <form
-        onSubmit={(e) => {
-          e.preventDefault()
-          postLogin(
-            { username, password },
-            {
-              onSuccess: ({ token }) => {
-                localStorage.setItem('token', token)
-                navigate(state?.from?.pathname || '/', { replace: true })
-              },
-            }
-          )
-        }}
-      >
-        <label>
-          Username:
-          <input type='text' name='username' onChange={onUsernameChange} />
-        </label>
-        <br />
-        <label>
-          Password:
-          <input type='password' name='password' onChange={onPasswordChange} />
-        </label>
-        <br />
-        <button type='submit'>Login</button>
-      </form>
+    <div className='min-h-screen flex items-center justify-center'>
+      <Form {...form}>
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className='space-y-16 w-[300px]'
+        >
+          <FormField
+            control={form.control}
+            name='username'
+            render={({ field }) => {
+              field.value = field.value.substring(0, MAX_FIELD_LEN)
+              return (
+                <FormItem>
+                  <FormLabel>Username</FormLabel>
+                  <FormControl>
+                    <Input placeholder='your username...' {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )
+            }}
+          />
+          <FormField
+            control={form.control}
+            name='password'
+            render={({ field }) => {
+              field.value = field.value.substring(0, MAX_FIELD_LEN)
+              return (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <Input type='password' {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )
+            }}
+          />
+          <Button type='submit'>Login</Button>
+        </form>
+      </Form>
     </div>
   )
 }

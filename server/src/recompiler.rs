@@ -158,6 +158,7 @@ async fn recompile() {
             "--outDir",
             crate::DIST_DIR,
             "--emptyOutDir",
+            "--minify",
             "--mode",
             "development",
         ],

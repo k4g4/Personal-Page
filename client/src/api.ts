@@ -88,10 +88,27 @@ const mutate = <Req = null>(method: 'post' | 'delete', endpoint: Endpoint) => {
     }
 }
 
-export type Login = {
-  username: string
-  password: string
-}
+export const MAX_FIELD_LEN = 16
+
+export const login = z.object({
+  username: z
+    .string()
+    .min(4, {
+      message: 'Username must be at least 4 characters',
+    })
+    .max(MAX_FIELD_LEN)
+    .regex(/^[a-zA-Z0-9_]*$/, {
+      message: 'Username must only contain letters, numbers, and underscores',
+    }),
+  password: z
+    .string()
+    .min(6, {
+      message: 'Password must be at least 6 characters',
+    })
+    .max(MAX_FIELD_LEN)
+    .regex(/^^[^ ]*$/, { message: 'Password must not contain spaces' }),
+})
+export type Login = z.infer<typeof login>
 
 const loginRes = z.object({ token: z.string() })
 
