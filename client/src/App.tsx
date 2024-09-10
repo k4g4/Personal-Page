@@ -16,17 +16,30 @@ import {
 import { useEffect, useState } from 'react'
 
 export default function App() {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(
+    localStorage.getItem('darkMode') === 'true'
+  )
 
   useEffect(() => {
-    window.matchMedia &&
-      window.matchMedia('(prefers-color-scheme: dark)').matches &&
+    if (localStorage.getItem('darkMode') === null) {
+      if (
+        window.matchMedia &&
+        window.matchMedia('(prefers-color-scheme: dark)').matches
+      ) {
+        localStorage.setItem('darkMode', 'true')
+      } else {
+        localStorage.setItem('darkMode', 'false')
+      }
+    }
+    if (localStorage.getItem('darkMode') === 'true') {
       document.documentElement.classList.add('dark')
+    }
   }, [])
 
   const onToggleDarkMode = () => {
     setDarkMode(!darkMode)
     document.documentElement.classList.toggle('dark')
+    localStorage.setItem('darkMode', (!darkMode).toString())
   }
 
   return (
@@ -93,7 +106,9 @@ function LoginPage() {
             control={form.control}
             name='username'
             render={({ field }) => {
-              field.value = field.value.substring(0, MAX_FIELD_LEN)
+              field.value = field.value
+                .substring(0, MAX_FIELD_LEN)
+                .replace(/[^a-zA-Z0-9]/, '')
               return (
                 <FormItem>
                   <FormLabel>Username</FormLabel>
@@ -109,7 +124,9 @@ function LoginPage() {
             control={form.control}
             name='password'
             render={({ field }) => {
-              field.value = field.value.substring(0, MAX_FIELD_LEN)
+              field.value = field.value
+                .substring(0, MAX_FIELD_LEN)
+                .replace(' ', '')
               return (
                 <FormItem>
                   <FormLabel>Password</FormLabel>
