@@ -12,13 +12,17 @@ use futures::{future::OptionFuture, FutureExt};
 use recompiler::Recompiler;
 use std::time::Duration;
 use tokio::{net::TcpListener, signal, time};
-use tower_http::{services::ServeDir, trace::TraceLayer};
+use tower_http::{
+    services::{ServeDir, ServeFile},
+    trace::TraceLayer,
+};
 use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 const ADDR: &str = "localhost:3000";
 const MOD_TIMES: &str = "modtimes.json";
 const DIST_DIR: &str = "../dist";
+const INDEX_PATH: &str = "../dist/index.html";
 const CLIENT_DIR: &str = "../client";
 const SRC_DIR: &str = "../client/src";
 const INPUT_CSS: &str = "input.css";
@@ -40,7 +44,10 @@ async fn main() -> Result<()> {
     dotenvy::dotenv()?;
 
     let routes = Router::new()
-        .nest_service("/", ServeDir::new(DIST_DIR))
+        .nest_service(
+            "/",
+            ServeDir::new(DIST_DIR).fallback(ServeFile::new(INDEX_PATH)),
+        )
         .layer(middleware::option_layer(
             OptionFuture::from(recompiler).await.transpose()?,
         ))

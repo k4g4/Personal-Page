@@ -55,12 +55,18 @@ schema! {
 }
 
 routes! {
-    post login(Json(_login): Json<LoginReq>) -> Result<LoginRes> {
+    post login(Json(login): Json<LoginReq>) -> Result<LoginRes> {
+        println!("login: {login:?}");
         let id = UserId::default();
         Claim::new(id)
             .encode()
             .map(|token| Json(LoginRes { token }))
             .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into())
+    }
+
+    post logout(User(user): User) -> StatusCode {
+        println!("{user} logged out");
+        StatusCode::OK
     }
 
     post foo(User(user): User, Json(foo): Json<Foo>) -> Result<Bar> {

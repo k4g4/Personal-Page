@@ -1,67 +1,99 @@
 import { z } from 'zod'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import {
+  useLocation,
+  useNavigate,
+  type NavigateFunction,
+  type Location,
+} from 'react-router-dom'
 
-type Endpoint = 'foo' | 'bar'
+type Endpoint = 'login' | 'logout' | 'foo'
 
-class ApiError extends Error {
-  readonly status: number
-  readonly statusText: string
-  readonly message: string
-
-  constructor(status: number, statusText: string, message: string) {
-    super()
-    this.status = status
-    this.statusText = statusText
-    this.message = message
-  }
-
-  toString() {
-    return `[${this.status}: ${this.statusText}] ${this.message}`
+const handleResponse = async <Res extends z.ZodTypeAny>(
+  res: Response,
+  schema: Res | undefined,
+  location: Location<any>,
+  navigate: NavigateFunction
+) => {
+  if (res.ok) {
+    if (schema) {
+      return schema.parse(await res.json()) as z.infer<Res>
+    }
+    return
+  } else if (res.status === 401) {
+    localStorage.removeItem('token')
+    navigate('/login', { state: { from: location }, replace: true })
+    return null
+  } else {
+    throw new Error(
+      res.body ? `${res.statusText}: ${await res.text()}` : res.statusText
+    )
   }
 }
 
-// Params: <Request Type>(Method, Endpoint)(Response Schema)
-// Return: (Request Type) => { pending: true, response: Response Type } | { pending: false, response: null }
-// Throws: Error | ZodError | ApiError
-const api =
-  <Req extends {}>(method: 'get' | 'post' | 'delete', endpoint: Endpoint) =>
-  <Res extends z.ZodTypeAny>(response: Res) =>
-  (req: Req) => {
-    const body = JSON.stringify(req)
-    const token = localStorage.getItem('token')
+const query = <Req = null>(endpoint: Endpoint) => {
+  return <Res extends z.ZodTypeAny>(schema?: Res) =>
+    (req: Req) => {
+      const location = useLocation()
+      const navigate = useNavigate()
+      const url = `/api/${endpoint}?${new URLSearchParams(req ?? {})}`
+      const token = localStorage.getItem('token')
+      const headers: [string, string][] = token
+        ? [['Authorization', `Bearer ${token}`]]
+        : []
 
-    let headers = new Headers()
-    let url = `/api/${endpoint}`
-    let options: Parameters<typeof fetch>[1] = { method }
-    if (method === 'post') {
-      headers.append('Content-Type', 'application/json')
-      options = { body, ...options }
-    } else {
-      url = `${url}?${new URLSearchParams(req)}`
+      return useQuery({
+        queryKey: ['get', endpoint, req],
+        queryFn: async ({ signal }) => {
+          const res = await fetch(url, { signal, method: 'get', headers })
+          return handleResponse(res, schema, location, navigate)
+        },
+      })
     }
-    if (token) {
-      headers.append('Authorization', `Bearer ${token}`)
+}
+
+const mutate = <Req = null>(method: 'post' | 'delete', endpoint: Endpoint) => {
+  const url = `/api/${endpoint}`
+  return <Res extends z.ZodTypeAny>(schema?: Res) =>
+    () => {
+      const location = useLocation()
+      const navigate = useNavigate()
+      const token = localStorage.getItem('token')
+
+      let headers = new Headers()
+      if (token) {
+        headers.append('Authorization', `Bearer ${token}`)
+      }
+      if (method === 'post') {
+        headers.append('Content-Type', 'application/json')
+      }
+      const options = { method, headers }
+
+      return useMutation<z.infer<Res>, Error, Req>({
+        mutationFn: async (req) => {
+          const res = await (method === 'delete'
+            ? fetch(`${url}?${new URLSearchParams(req ?? {})}`, options)
+            : fetch(
+                url,
+                req
+                  ? {
+                      body: JSON.stringify(req),
+                      ...options,
+                    }
+                  : options
+              ))
+          return handleResponse(res, schema, location, navigate)
+        },
+      })
     }
-    options = { headers, ...options }
+}
 
-    const { data, isSuccess } = useQuery({
-      throwOnError: true,
-      queryKey: [method, endpoint, body],
-      queryFn: async ({ signal }) => {
-        const res = await fetch(url, { signal, ...options })
-        if (res.ok) {
-          return response.parse(
-            res.body ? await res.json() : null
-          ) as z.infer<Res>
-        }
-        throw new ApiError(res.status, res.statusText, await res.text())
-      },
-    })
+export type Login = {
+  username: string
+  password: string
+}
 
-    return isSuccess
-      ? ({ pending: false, response: data } as const)
-      : ({ pending: true, response: null } as const)
-  }
+const loginRes = z.object({ token: z.string() })
 
 const bar = z.union([
   z.literal('first'),
@@ -77,4 +109,7 @@ export type Foo = {
   hello: boolean
 }
 
-export const usePostFoo = api<Foo>('post', 'foo')(bar)
+export const usePostLogin = mutate<Login>('post', 'login')(loginRes)
+export const usePostLogout = mutate('post', 'logout')()
+export const usePostFoo = mutate<Foo>('post', 'foo')(bar)
+export const useGetFoo = query<Bar>('foo')(bar)

@@ -1,31 +1,91 @@
 import React, { useState } from 'react'
-import { usePostFoo } from './api'
+import { usePostFoo, usePostLogin, usePostLogout } from './api'
+import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 export default function App() {
-  const [n, setN] = useState(0)
-
   return (
     <div>
-      <button onClick={() => setN((n) => n + 1)}>Increment</button>
-      <Inner n={n} />
+      <Routes>
+        <Route path='/' element={<Home />} />
+        <Route path='/login' element={<Login />} />
+      </Routes>
     </div>
   )
 }
 
-function Inner({ n }: { n: number }) {
-  const { pending, response } = usePostFoo({
-    bars: [{ second: n }],
-    hello: true,
-  })
+function Home() {
+  const [count, setCount] = useState(0)
+  const navigate = useNavigate()
+  const { mutate: postFoo } = usePostFoo()
+  const { mutate: postLogout } = usePostLogout()
 
-  if (pending) {
-    return <div></div>
-  }
-  if (typeof response === 'string') {
-    return <div>{response}</div>
-  }
-  if ('second' in response) {
-    return <div>{response.second}</div>
-  }
-  return <div>{response.third.thing}</div>
+  return (
+    <div>
+      <p>You clicked {count} times</p>
+      <button onClick={() => setCount((n) => n + 1)}>Click me</button>
+      <br />
+      <button
+        onClick={() =>
+          postFoo({
+            bars: [
+              'first',
+              {
+                second: count,
+              },
+              {
+                third: {
+                  thing: 'foo',
+                },
+              },
+            ],
+            hello: true,
+          })
+        }
+      >
+        Post Foo
+      </button>
+      <br />
+      <button
+        onClick={() =>
+          postLogout(null, {
+            onSuccess: () => {
+              localStorage.removeItem('token')
+              navigate('/login')
+            },
+          })
+        }
+      >
+        Logout
+      </button>
+    </div>
+  )
+}
+
+function Login() {
+  const { mutate: postLogin } = usePostLogin()
+  const { state } = useLocation()
+  const navigate = useNavigate()
+
+  return (
+    <div>
+      <button
+        onClick={() =>
+          postLogin(
+            {
+              username: 'foo',
+              password: 'bar',
+            },
+            {
+              onSuccess: ({ token }) => {
+                localStorage.setItem('token', token)
+                navigate(state?.from?.pathname || '/', { replace: true })
+              },
+            }
+          )
+        }
+      >
+        Login
+      </button>
+    </div>
+  )
 }
