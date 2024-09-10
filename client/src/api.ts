@@ -95,21 +95,5 @@ export type Login = {
 
 const loginRes = z.object({ token: z.string() })
 
-const bar = z.union([
-  z.literal('first'),
-  z.object({
-    second: z.number(),
-  }),
-  z.object({ third: z.object({ thing: z.string() }) }),
-])
-export type Bar = z.infer<typeof bar>
-
-export type Foo = {
-  bars: Bar[]
-  hello: boolean
-}
-
 export const usePostLogin = mutate<Login>('post', 'login')(loginRes)
 export const usePostLogout = mutate('post', 'logout')()
-export const usePostFoo = mutate<Foo>('post', 'foo')(bar)
-export const useGetFoo = query<Bar>('foo')(bar)

@@ -41,17 +41,6 @@ schema! {
     struct LoginRes {
         token: String,
     }
-
-    enum Bar {
-        First,
-        Second(u32),
-        Third { thing: String },
-    }
-
-    struct Foo {
-        pub bars: Vec<Bar>,
-        pub hello: bool,
-    }
 }
 
 routes! {
@@ -67,10 +56,5 @@ routes! {
     post logout(User(user): User) -> StatusCode {
         println!("{user} logged out");
         StatusCode::OK
-    }
-
-    post foo(User(user): User, Json(foo): Json<Foo>) -> Result<Bar> {
-        println!("{user}: {foo:?}");
-        Ok(foo.bars[0].clone().into())
     }
 }

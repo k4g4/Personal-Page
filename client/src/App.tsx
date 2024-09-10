@@ -1,5 +1,5 @@
-import React, { useState } from 'react'
-import { usePostFoo, usePostLogin, usePostLogout } from './api'
+import { useState } from 'react'
+import { usePostLogin, usePostLogout } from './api'
 import { Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 
 export default function App() {
@@ -14,37 +14,11 @@ export default function App() {
 }
 
 function Home() {
-  const [count, setCount] = useState(0)
   const navigate = useNavigate()
-  const { mutate: postFoo } = usePostFoo()
   const { mutate: postLogout } = usePostLogout()
 
   return (
     <div>
-      <p>You clicked {count} times</p>
-      <button onClick={() => setCount((n) => n + 1)}>Click me</button>
-      <br />
-      <button
-        onClick={() =>
-          postFoo({
-            bars: [
-              'first',
-              {
-                second: count,
-              },
-              {
-                third: {
-                  thing: 'foo',
-                },
-              },
-            ],
-            hello: true,
-          })
-        }
-      >
-        Post Foo
-      </button>
-      <br />
       <button
         onClick={() =>
           postLogout(null, {
