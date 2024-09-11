@@ -4,9 +4,12 @@
   "private": true,
   "type": "module",
   "dependencies": {
+    "@fortawesome/free-solid-svg-icons": "^6.6.0",
+    "@fortawesome/react-fontawesome": "^0.2.2",
     "@hookform/resolvers": "^3.9.0",
     "@radix-ui/react-label": "^2.1.0",
     "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-switch": "^1.1.0",
     "@tanstack/react-query": "^5.53.1",
     "@tanstack/react-query-devtools": "^5.54.0",
     "@testing-library/jest-dom": "^5.17.0",

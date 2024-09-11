@@ -7,7 +7,7 @@ import {
   type Location,
 } from 'react-router-dom'
 
-type Endpoint = 'login' | 'logout' | 'foo'
+type Endpoint = 'login' | 'signup' | 'logout'
 
 const handleResponse = async <Res extends z.ZodTypeAny>(
   res: Response,
@@ -90,13 +90,13 @@ const mutate = <Req = null>(method: 'post' | 'delete', endpoint: Endpoint) => {
 
 export const MAX_FIELD_LEN = 16
 
-export const login = z.object({
+export const credentials = z.object({
   username: z
     .string()
     .min(4, {
       message: 'Username must be at least 4 characters',
     })
-    .max(MAX_FIELD_LEN)
+    .max(MAX_FIELD_LEN, { message: 'Username is too long' })
     .regex(/^[a-zA-Z0-9_]*$/, {
       message: 'Username must only contain letters, numbers, and underscores',
     }),
@@ -105,12 +105,13 @@ export const login = z.object({
     .min(6, {
       message: 'Password must be at least 6 characters',
     })
-    .max(MAX_FIELD_LEN)
-    .regex(/^^[^ ]*$/, { message: 'Password must not contain spaces' }),
+    .max(MAX_FIELD_LEN, { message: 'Password is too long' })
+    .regex(/^^[^ ]*$/, { message: "Password can't contain spaces" }),
 })
-export type Login = z.infer<typeof login>
+export type Credentials = z.infer<typeof credentials>
 
-const loginRes = z.object({ token: z.string() })
+const token = z.object({ token: z.string() })
 
-export const usePostLogin = mutate<Login>('post', 'login')(loginRes)
+export const usePostLogin = mutate<Credentials>('post', 'login')(token)
+export const usePostSignup = mutate<Credentials>('post', 'signup')(token)
 export const usePostLogout = mutate('post', 'logout')()

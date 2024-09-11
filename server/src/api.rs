@@ -1,6 +1,9 @@
+use std::time::Duration;
+
 use crate::{extractors::user::User, jwt::Claim, models::ids::UserId};
 use axum::{http::StatusCode, Json, Router};
 use serde::{Deserialize, Serialize};
+use tokio::time;
 
 type Result<T> = axum::response::Result<Json<T>>;
 
@@ -33,23 +36,38 @@ macro_rules! routes {
 }
 
 schema! {
-    struct LoginReq {
+    struct Credentials {
         username: String,
         password: String,
     }
 
-    struct LoginRes {
+    struct Token {
         token: String,
     }
 }
 
 routes! {
-    post login(Json(login): Json<LoginReq>) -> Result<LoginRes> {
-        println!("login: {login:?}");
+    post login(Json(Credentials { username, password }): Json<Credentials>) -> Result<Token> {
         let id = UserId::default();
+
+        println!("login: {username} {password}");
+        time::sleep(Duration::from_secs(1)).await;
+
         Claim::new(id)
             .encode()
-            .map(|token| Json(LoginRes { token }))
+            .map(|token| Json(Token { token }))
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into())
+    }
+
+    post signup(Json(Credentials { username, password }): Json<Credentials>) -> Result<Token> {
+        let id = UserId::default();
+
+        println!("sign up: {username} {password}");
+        time::sleep(Duration::from_secs(1)).await;
+
+        Claim::new(id)
+            .encode()
+            .map(|token| Json(Token { token }))
             .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into())
     }
 
