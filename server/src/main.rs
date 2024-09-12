@@ -19,7 +19,7 @@ use tower_http::{
 use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
-const ADDR: &str = "localhost:3000";
+const ADDR: &str = "0.0.0.0:3000";
 const MOD_TIMES: &str = "modtimes.json";
 const DIST_DIR: &str = "../dist";
 const INDEX_PATH: &str = "../dist/index.html";

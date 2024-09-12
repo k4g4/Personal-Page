@@ -106,7 +106,7 @@ export const credentials = z.object({
       message: 'Password must be at least 6 characters',
     })
     .max(MAX_FIELD_LEN, { message: 'Password is too long' })
-    .regex(/^^[^ ]*$/, { message: "Password can't contain spaces" }),
+    .regex(/^^\S*$/, { message: "Password can't contain spaces" }),
 })
 export type Credentials = z.infer<typeof credentials>
 

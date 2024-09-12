@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': '/home/anders/js/personalpage/client',
+      '@': '/home/anders/js/personalpage/client/src',
     },
     extensions: ['.ts', '.tsx'],
   },

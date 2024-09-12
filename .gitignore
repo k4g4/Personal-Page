@@ -1,5 +1,6 @@
 /client/node_modules
 /client/bun.lockb
+/client/index.css
 /dist
 /server/target
 /server/modtimes.json
