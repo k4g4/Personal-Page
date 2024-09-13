@@ -5,3 +5,4 @@
 /server/target
 /server/modtimes.json
 /server/.env
+/server/personalpage.db*
