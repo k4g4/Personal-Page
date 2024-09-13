@@ -69,7 +69,7 @@ where
         let next_service = self.next_service.clone();
 
         Box::pin(async move {
-            match get_mod_times(crate::SRC_DIR, Default::default()).await {
+            match get_mod_times(crate::CLIENT_DIR, Default::default()).await {
                 Err(error) => error!("{error}"),
 
                 Ok(current_mod_times) => {
@@ -104,7 +104,7 @@ async fn get_mod_times(path: impl AsRef<Path>, mut mod_times: ModTimes) -> Resul
     while let Some(entry) = dir.next_entry().await? {
         let file_type = entry.file_type().await;
 
-        if file_type.as_ref().is_ok_and(FileType::is_dir) {
+        if file_type.as_ref().is_ok_and(FileType::is_dir) && entry.file_name() != "node_modules" {
             mod_times = Box::pin(get_mod_times(entry.path(), mod_times)).await?;
         } else if file_type.as_ref().is_ok_and(FileType::is_file) {
             *mod_times.entry(entry.path()).or_default() = entry.metadata().await?.mtime();

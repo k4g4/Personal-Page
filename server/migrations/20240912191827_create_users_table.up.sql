@@ -1,0 +1,5 @@
+CREATE TABLE users (
+  id VARCHAR(16) NOT NULL PRIMARY KEY,
+  username VARCHAR(16) NOT NULL UNIQUE,
+  password_hash VARCHAR NOT NULL,
+  password_salt_b64 VARCHAR(22) NOT NULL)

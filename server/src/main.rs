@@ -10,7 +10,8 @@ use axum_extra::middleware;
 use clap::Parser;
 use futures::{future::OptionFuture, FutureExt};
 use recompiler::Recompiler;
-use std::time::Duration;
+use sqlx::{migrate, SqlitePool};
+use std::{env, time::Duration};
 use tokio::{net::TcpListener, signal, time};
 use tower_http::{
     services::{ServeDir, ServeFile},
@@ -24,7 +25,6 @@ const MOD_TIMES: &str = "modtimes.json";
 const DIST_DIR: &str = "../dist";
 const INDEX_PATH: &str = "../dist/index.html";
 const CLIENT_DIR: &str = "../client";
-const SRC_DIR: &str = "../client/src";
 const INPUT_CSS: &str = "input.css";
 const INDEX_CSS: &str = "index.css";
 
@@ -43,6 +43,10 @@ async fn main() -> Result<()> {
 
     dotenvy::dotenv()?;
 
+    let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
+
+    migrate!().run(&pool).await?;
+
     let routes = Router::new()
         .nest_service(
             "/",
@@ -51,7 +55,7 @@ async fn main() -> Result<()> {
         .layer(middleware::option_layer(
             OptionFuture::from(recompiler).await.transpose()?,
         ))
-        .nest("/api", api::routes().layer(TraceLayer::new_for_http()));
+        .nest("/api", api::routes(pool).layer(TraceLayer::new_for_http()));
 
     Registry::default().with(fmt::layer()).init();
     info!(

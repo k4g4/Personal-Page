@@ -1,6 +1,10 @@
 use core::str;
 use rand::{distributions::Alphanumeric, prelude::*};
 use serde::{de, ser, Deserialize, Deserializer, Serialize, Serializer};
+use sqlx::encode::IsNull;
+use sqlx::error::BoxDynError;
+use sqlx::sqlite::SqliteArgumentValue;
+use sqlx::{Database, Decode, Encode, Sqlite, Type};
 use std::array;
 use std::fmt::{self, Display, Formatter};
 
@@ -28,6 +32,35 @@ impl Serialize for Id {
     }
 }
 
+impl Type<Sqlite> for Id {
+    fn type_info() -> <Sqlite as Database>::TypeInfo {
+        <&str as Type<Sqlite>>::type_info()
+    }
+}
+
+impl<'r> Decode<'r, Sqlite> for Id {
+    fn decode(value: <Sqlite as Database>::ValueRef<'r>) -> Result<Self, BoxDynError> {
+        <&str as Decode<Sqlite>>::decode(value)?
+            .as_bytes()
+            .try_into()
+            .map_err(|_| "Invalid id length".into())
+            .map(Self)
+    }
+}
+
+impl<'q> Encode<'q, Sqlite> for Id {
+    fn encode_by_ref(
+        &self,
+        buf: &mut <Sqlite as Database>::ArgumentBuffer<'q>,
+    ) -> Result<IsNull, BoxDynError> {
+        buf.push(SqliteArgumentValue::Text(
+            std::str::from_utf8(&self.0)?.to_owned().into(),
+        ));
+
+        Ok(IsNull::No)
+    }
+}
+
 impl<'de> Deserialize<'de> for Id {
     fn deserialize<D: Deserializer<'de>>(deser: D) -> Result<Self, D::Error> {
         <&str>::deserialize(deser)?
@@ -40,7 +73,8 @@ impl<'de> Deserialize<'de> for Id {
 
 macro_rules! id_type {
     ($name:ident) => {
-        #[derive(Copy, Clone, Serialize, Deserialize, Default, Debug)]
+        #[derive(Copy, Clone, Type, Serialize, Deserialize, Default, Debug)]
+        #[sqlx(transparent)]
         pub struct $name(pub Id);
 
         impl Display for $name {
@@ -48,6 +82,12 @@ macro_rules! id_type {
                 write!(f, "{}", self.0)
             }
         }
+
+        // impl From<String> for $name {
+        //     fn from(id: String) -> Self {
+        //         Self(id.into())
+        //     }
+        // }
     };
 }
 

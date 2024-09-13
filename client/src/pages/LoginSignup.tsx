@@ -15,7 +15,8 @@ import {
   FormLabel,
   FormMessage,
 } from '@/utils/form'
-import { useState } from 'react'
+import { useState, type ChangeEvent } from 'react'
+import Loading from '@/utils/loading'
 
 export default function LoginSignup() {
   const [signingUp, setSigningUp] = useState(false)
@@ -28,15 +29,21 @@ export default function LoginSignup() {
     resolver: zodResolver(credentials),
     defaultValues: { username: '', password: '' },
   })
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordMismatch, setPasswordMismatch] = useState(false)
 
   const onSubmit = (credentials: Credentials) => {
     const post = signingUp ? postSignup : postLogin
-    post(credentials, {
-      onSuccess: ({ token }) => {
-        localStorage.setItem('token', token)
-        navigate(state?.from?.pathname || '/', { replace: true })
-      },
-    })
+    if (signingUp && credentials.password !== confirmPassword) {
+      setPasswordMismatch(true)
+    } else {
+      post(credentials, {
+        onSuccess: ({ token }) => {
+          localStorage.setItem('token', token)
+          navigate(state?.from?.pathname || '/', { replace: true })
+        },
+      })
+    }
   }
 
   return (
@@ -88,34 +95,26 @@ export default function LoginSignup() {
             }}
           />
           {signingUp && (
-            <FormField
-              control={form.control}
-              name='password'
-              render={({ field }) => {
-                field.value = field.value
-                  .substring(0, MAX_FIELD_LEN)
-                  .replace(' ', '')
-                return (
-                  <FormItem className='animate-enter'>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <Input type='password' {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )
-              }}
-            />
+            <FormItem className='animate-enter'>
+              <FormLabel>Confirm Password</FormLabel>
+              <Input
+                type='password'
+                onChange={(event: ChangeEvent<HTMLInputElement>) => {
+                  if (form.getValues('password') === event.target.value) {
+                    setPasswordMismatch(false)
+                  }
+                  setConfirmPassword(event.target.value)
+                }}
+                value={confirmPassword}
+              />
+              <FormMessage>
+                {passwordMismatch && 'Passwords do not match'}
+              </FormMessage>
+            </FormItem>
           )}
           <div className='flex items-center justify-between'>
             <Button size='md' type='submit'>
-              {isPending ? (
-                <span className='animate-bounce'>...</span>
-              ) : signingUp ? (
-                'Sign up'
-              ) : (
-                'Login'
-              )}
+              {isPending ? <Loading /> : signingUp ? 'Sign up' : 'Login'}
             </Button>
             <div className='flex gap-2 items-center'>
               <Switch checked={signingUp} onCheckedChange={setSigningUp} />

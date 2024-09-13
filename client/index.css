@@ -438,14 +438,14 @@ video {
 }
 
 :root {
-  --background: 0 0% 100%;
+  --background: 0 0% 90%;
   --foreground: 222.2 47.4% 11.2%;
   --muted: 210 40% 96.1%;
   --muted-foreground: 215.4 16.3% 46.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 47.4% 11.2%;
-  --border: 214.3 31.8% 91.4%;
-  --input: 214.3 31.8% 91.4%;
+  --border: 215, 6.3%, 63%;
+  --input: 215, 6.3%, 63%;
   --card: 0 0% 100%;
   --card-foreground: 222.2 47.4% 11.2%;
   --primary: 222.2 47.4% 11.2%;
@@ -461,7 +461,7 @@ video {
 }
 
 .dark {
-  --background: 224 71% 4%;
+  --background: 222 43% 9%;
   --foreground: 213 31% 91%;
   --muted: 223 47% 11%;
   --muted-foreground: 215.4 16.3% 56.9%;
@@ -697,8 +697,14 @@ body {
   }
 
   50% {
-    transform: none;
+    transform: translateY(-20%);
     animation-timing-function: cubic-bezier(0,0,0.2,1);
+    animation-timing-function: cubic-bezier(0, 0, 0.2, 1);
+  }
+
+  from, 100% {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.8, 0, 1, 1);
   }
 }
 
@@ -742,10 +748,10 @@ body {
   gap: 0.5rem;
 }
 
-.space-y-12 > :not([hidden]) ~ :not([hidden]) {
+.space-y-10 > :not([hidden]) ~ :not([hidden]) {
   --tw-space-y-reverse: 0;
-  margin-top: calc(3rem * calc(1 - var(--tw-space-y-reverse)));
-  margin-bottom: calc(3rem * var(--tw-space-y-reverse));
+  margin-top: calc(2.5rem * calc(1 - var(--tw-space-y-reverse)));
+  margin-bottom: calc(2.5rem * var(--tw-space-y-reverse));
 }
 
 .space-y-2 > :not([hidden]) ~ :not([hidden]) {
@@ -905,6 +911,14 @@ body {
   transition-duration: 150ms;
 }
 
+.delay-200 {
+  transition-delay: 200ms;
+}
+
+.delay-400 {
+  transition-delay: 400ms;
+}
+
 @keyframes enter {
   from {
     opacity: 0;
@@ -922,6 +936,14 @@ body {
     opacity: var(--tw-exit-opacity, 1);
     transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
   }
+}
+
+.delay-200 {
+  animation-delay: 200ms;
+}
+
+.delay-400 {
+  animation-delay: 400ms;
 }
 
 .file\:border-0::file-selector-button {
