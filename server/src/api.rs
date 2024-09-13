@@ -6,7 +6,7 @@ use crate::{
 use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
 use axum::{extract::State, http::StatusCode, Router};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use sqlx::{query_as, SqlitePool};
+use sqlx::{error::Error as SqlxError, error::ErrorKind, query_as, SqlitePool};
 use tracing::debug;
 
 type ApiResult<T> = axum::response::Result<Payload<T>>;
@@ -122,9 +122,12 @@ routes! {
         debug!("signing up: {username} password: {password}");
 
         let salt = SaltString::generate(&mut rand::thread_rng());
-        let hash = Argon2::default().hash_password(password.as_bytes(), &salt).map_err(|_| generic_error)?.to_string();
-        let id = UserId::default();
+        let hash = Argon2::default()
+            .hash_password(password.as_bytes(), &salt)
+            .map_err(|_| generic_error)?
+            .to_string();
 
+        let id = UserId::default();
         let salt = salt.as_str();
         let res = query_as!(
             UserTable,
@@ -139,7 +142,13 @@ routes! {
         )
             .execute(&pool)
             .await
-            .map_err(|_| generic_error)?;
+            .map_err(|err|
+                match err {
+                    SqlxError::Database(err) if err.kind() == ErrorKind::UniqueViolation =>
+                        (StatusCode::INTERNAL_SERVER_ERROR, "This username is taken"),
+                    _ => generic_error,
+                }
+            )?;
 
         if res.rows_affected() != 1 {
             Err(generic_error.into())
