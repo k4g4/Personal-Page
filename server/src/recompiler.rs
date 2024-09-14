@@ -1,6 +1,11 @@
-use anyhow::Result;
-use tokio::process::{Child, Command};
-use tracing::trace;
+use anyhow::{Context, Result};
+use std::process::Stdio;
+use tokio::{
+    io::{AsyncBufReadExt, BufReader},
+    process::{Child, Command},
+    select,
+};
+use tracing::{error, info};
 
 const CLIENT_DIR: &str = "../client";
 const TAILWIND_IN: &str = "input.css";
@@ -8,41 +13,67 @@ const TAILWIND_OUT: &str = "../dist/index.css";
 const BUILD_IN: &str = "src/index.tsx";
 const BUILD_OUT: &str = "../dist/index.js";
 
-pub struct Recompiler {
-    tailwind: Child,
-    build: Child,
-}
+#[allow(unused)]
+pub struct Recompiler([Child; 2]);
 
 impl Recompiler {
     pub fn start() -> Result<Self> {
-        let spawn = |args: &[&str]| {
+        let spawn = |args: &[_]| {
             Command::new("bun")
                 .current_dir(CLIENT_DIR)
                 .args(args)
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
                 .kill_on_drop(true)
                 .spawn()
         };
+        let mut tailwind = spawn(&["tailwind", "-i", TAILWIND_IN, "-o", TAILWIND_OUT, "--watch"])?;
+        let mut build = spawn(&[
+            "build",
+            BUILD_IN,
+            "--outfile",
+            BUILD_OUT,
+            "--minify",
+            "--watch",
+            "--no-clear-screen",
+        ])?;
 
-        Ok(Self {
-            tailwind: spawn(&["tailwind", "-i", TAILWIND_IN, "-o", TAILWIND_OUT, "--watch"])?,
-            build: spawn(&[
-                "build",
-                BUILD_IN,
-                "--outfile",
-                BUILD_OUT,
-                "--minify",
-                "--watch",
-                "--no-clear-screen",
-            ])?,
-        })
-    }
+        let get_outputs = |child: &mut Child| -> Result<_> {
+            Ok((
+                child
+                    .stdout
+                    .take()
+                    .map(BufReader::new)
+                    .map(BufReader::lines)
+                    .context("child process has no stdout")?,
+                child
+                    .stderr
+                    .take()
+                    .map(BufReader::new)
+                    .map(BufReader::lines)
+                    .context("child process has no stderr")?,
+            ))
+        };
+        let (mut tailwind_out, mut tailwind_err) = get_outputs(&mut tailwind)?;
+        let (mut build_out, mut build_err) = get_outputs(&mut build)?;
 
-    pub async fn stop(mut self) -> Result<()> {
-        self.tailwind.kill().await?;
-        trace!("tailwind killed");
-        self.build.kill().await?;
-        trace!("build killed");
-        Ok(())
+        tokio::spawn(async move {
+            loop {
+                let (label, line) = select! {
+                    line = tailwind_out.next_line() => ("tailwind(out)", line),
+                    line = tailwind_err.next_line() => ("tailwind(err)", line),
+                    line = build_out.next_line() => ("build(out)", line),
+                    line = build_err.next_line() => ("build(err)", line),
+                };
+                match line {
+                    Ok(Some(line)) if !line.is_empty() => info!("{label}: {line}"),
+                    Err(err) => error!("{err}"),
+                    _ => {}
+                }
+            }
+        });
+
+        Ok(Self([tailwind, build]))
     }
 }
 

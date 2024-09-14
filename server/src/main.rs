@@ -33,7 +33,7 @@ struct Args {
 #[tokio::main]
 async fn main() -> Result<()> {
     let Args { watch } = Args::parse();
-    let recompiler = watch.then(Recompiler::start).transpose()?;
+    let _recompiler = watch.then(Recompiler::start).transpose()?;
 
     dotenvy::dotenv()?;
 
@@ -54,12 +54,6 @@ async fn main() -> Result<()> {
     axum::serve(TcpListener::bind(ADDR).await?, routes)
         .with_graceful_shutdown(async {
             signal::ctrl_c().await.expect("failed to listen for ctrl-c");
-            if let Some(recompiler) = recompiler {
-                recompiler
-                    .stop()
-                    .await
-                    .expect("failed to stop watch processes");
-            }
         })
         .await?;
 
