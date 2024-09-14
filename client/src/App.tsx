@@ -5,8 +5,10 @@ import { useEffect, useState } from 'react'
 import LoginSignup from '@/pages/LoginSignup'
 import Home from '@/pages/Home'
 import { Route, Routes } from 'react-router-dom'
+import { useClearError } from './utils/error'
 
 export default function App() {
+  const clearError = useClearError()
   const [darkMode, setDarkMode] = useState(
     localStorage.getItem('darkMode') === 'true'
   )
@@ -29,6 +31,7 @@ export default function App() {
 
   const onToggleDarkMode = () => {
     setDarkMode(!darkMode)
+    clearError()
     document.getElementsByTagName('body')[0].classList.toggle('dark')
     localStorage.setItem('darkMode', (!darkMode).toString())
   }
