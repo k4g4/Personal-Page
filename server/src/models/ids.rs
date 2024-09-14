@@ -82,12 +82,6 @@ macro_rules! id_type {
                 write!(f, "{}", self.0)
             }
         }
-
-        // impl From<String> for $name {
-        //     fn from(id: String) -> Self {
-        //         Self(id.into())
-        //     }
-        // }
     };
 }
 
