@@ -444,8 +444,8 @@ video {
   --muted-foreground: 215.4 16.3% 46.9%;
   --popover: 0 0% 100%;
   --popover-foreground: 222.2 47.4% 11.2%;
-  --border: 215, 6.3%, 63%;
-  --input: 215, 6.3%, 63%;
+  --border: 215 6.3% 63%;
+  --input: 215 6.3% 63%;
   --card: 0 0% 100%;
   --card-foreground: 222.2 47.4% 11.2%;
   --primary: 222.2 47.4% 11.2%;
@@ -477,7 +477,7 @@ video {
   --primary-foreground: 222.2 47.4% 1.2%;
   --secondary: 222.2 47.4% 11.2%;
   --secondary-foreground: 210 40% 98%;
-  --destructive: 0 63% 45%;
+  --destructive: 11 86% 46%;
   --destructive-foreground: 210 40% 98%;
   --ring: 216 34% 17%;
   --radius: 0.5rem;
@@ -610,12 +610,36 @@ body {
   position: fixed;
 }
 
+.absolute {
+  position: absolute;
+}
+
+.relative {
+  position: relative;
+}
+
+.bottom-0 {
+  bottom: 0px;
+}
+
+.left-0 {
+  left: 0px;
+}
+
 .right-4 {
   right: 1rem;
 }
 
 .top-4 {
   top: 1rem;
+}
+
+.top-5 {
+  top: 1.25rem;
+}
+
+.z-10 {
+  z-index: 10;
 }
 
 .block {
@@ -630,12 +654,20 @@ body {
   display: inline-flex;
 }
 
+.h-1 {
+  height: 0.25rem;
+}
+
 .h-10 {
   height: 2.5rem;
 }
 
 .h-11 {
   height: 2.75rem;
+}
+
+.h-24 {
+  height: 6rem;
 }
 
 .h-5 {
@@ -728,8 +760,45 @@ body {
   animation: enter 0.2s ease-out;
 }
 
+@keyframes exit {
+  to {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-exit {
+  animation: exit 0.2s forwards ease-out;
+}
+
+@keyframes shrink-left {
+  from {
+    transform: scaleX(1);
+    transform-origin: left;
+    animation-timing-function: linear;
+  }
+
+  to {
+    transform: scaleX(0);
+    transform-origin: left;
+  }
+}
+
+.animate-shrink-left {
+  animation: shrink-left 2.5s forwards;
+}
+
 .cursor-pointer {
   cursor: pointer;
+}
+
+.flex-col {
+  flex-direction: column;
 }
 
 .items-center {
@@ -744,8 +813,16 @@ body {
   justify-content: space-between;
 }
 
+.gap-1 {
+  gap: 0.25rem;
+}
+
 .gap-2 {
   gap: 0.5rem;
+}
+
+.gap-8 {
+  gap: 2rem;
 }
 
 .space-y-10 > :not([hidden]) ~ :not([hidden]) {
@@ -780,6 +857,10 @@ body {
   border-width: 2px;
 }
 
+.border-destructive {
+  border-color: hsl(var(--destructive));
+}
+
 .border-input {
   border-color: hsl(var(--input));
 }
@@ -796,12 +877,20 @@ body {
   background-color: hsl(var(--destructive));
 }
 
+.bg-destructive\/10 {
+  background-color: hsl(var(--destructive) / 0.1);
+}
+
 .bg-primary {
   background-color: hsl(var(--primary));
 }
 
 .bg-secondary {
   background-color: hsl(var(--secondary));
+}
+
+.bg-opacity-20 {
+  --tw-bg-opacity: 0.2;
 }
 
 .px-3 {
@@ -829,6 +918,19 @@ body {
   padding-bottom: 0.5rem;
 }
 
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+
+.pl-6 {
+  padding-left: 1.5rem;
+}
+
+.pr-10 {
+  padding-right: 2.5rem;
+}
+
 .pt-\[20vh\] {
   padding-top: 20vh;
 }
@@ -841,6 +943,11 @@ body {
 .text-sm {
   font-size: 0.875rem;
   line-height: 1.25rem;
+}
+
+.text-xl {
+  font-size: 1.25rem;
+  line-height: 1.75rem;
 }
 
 .font-medium {
@@ -915,6 +1022,10 @@ body {
   transition-delay: 200ms;
 }
 
+.delay-2500 {
+  transition-delay: 2.5s;
+}
+
 .delay-400 {
   transition-delay: 400ms;
 }
@@ -933,13 +1044,22 @@ body {
 
 @keyframes exit {
   to {
-    opacity: var(--tw-exit-opacity, 1);
-    transform: translate3d(var(--tw-exit-translate-x, 0), var(--tw-exit-translate-y, 0), 0) scale3d(var(--tw-exit-scale, 1), var(--tw-exit-scale, 1), var(--tw-exit-scale, 1)) rotate(var(--tw-exit-rotate, 0));
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  from {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 
 .delay-200 {
   animation-delay: 200ms;
+}
+
+.delay-2500 {
+  animation-delay: 2.5s;
 }
 
 .delay-400 {

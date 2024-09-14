@@ -145,7 +145,7 @@ routes! {
             .map_err(|err|
                 match err {
                     SqlxError::Database(err) if err.kind() == ErrorKind::UniqueViolation =>
-                        (StatusCode::INTERNAL_SERVER_ERROR, "This username is taken"),
+                        (StatusCode::BAD_REQUEST, "This username is taken"),
                     _ => generic_error,
                 }
             )?;

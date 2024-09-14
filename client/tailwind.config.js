@@ -69,6 +69,10 @@ module.exports = {
           from: { opacity: '0', transform: 'translateY(-20px)' },
           to: { opacity: '1', transform: 'translateY(0)' },
         },
+        exit: {
+          from: { opacity: '1', transform: 'translateY(0)' },
+          to: { opacity: '0', transform: 'translateY(-20px)' },
+        },
         bounce: {
           'from, 100%': {
             transform: 'translateY(0)',
@@ -79,14 +83,28 @@ module.exports = {
             'animation-timing-function': 'cubic-bezier(0, 0, 0.2, 1)',
           },
         },
+        'shrink-left': {
+          from: {
+            transform: 'scaleX(1)',
+            'transform-origin': 'left',
+            'animation-timing-function': 'linear',
+          },
+          to: {
+            transform: 'scaleX(0)',
+            'transform-origin': 'left',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         enter: 'enter 0.2s ease-out',
+        exit: 'exit 0.2s forwards ease-out',
+        'shrink-left': 'shrink-left 2.5s forwards',
       },
       transitionDelay: {
         400: '400ms',
+        2_500: '2.5s',
       },
     },
   },

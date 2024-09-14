@@ -4,15 +4,18 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { BrowserRouter } from 'react-router-dom'
 import { QueryClientProvider, QueryClient } from '@tanstack/react-query'
 import App from '@/App'
+import { ErrorProvider } from '@/utils/error'
 
 const queryClient = new QueryClient()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
+      <ErrorProvider>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </ErrorProvider>
       <ReactQueryDevtools />
     </QueryClientProvider>
   </React.StrictMode>

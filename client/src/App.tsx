@@ -23,13 +23,13 @@ export default function App() {
       }
     }
     if (localStorage.getItem('darkMode') === 'true') {
-      document.documentElement.classList.add('dark')
+      document.getElementsByTagName('body')[0].classList.add('dark')
     }
   }, [])
 
   const onToggleDarkMode = () => {
     setDarkMode(!darkMode)
-    document.documentElement.classList.toggle('dark')
+    document.getElementsByTagName('body')[0].classList.toggle('dark')
     localStorage.setItem('darkMode', (!darkMode).toString())
   }
 

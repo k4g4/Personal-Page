@@ -6,6 +6,7 @@ import {
   type NavigateFunction,
   type Location,
 } from 'react-router-dom'
+import { useUpdateError, type UpdateError } from '@/utils/error'
 
 type Endpoint = 'login' | 'signup' | 'logout'
 
@@ -13,7 +14,8 @@ const handleResponse = async <Res extends z.ZodTypeAny>(
   res: Response,
   schema: Res | undefined,
   location: Location<any>,
-  navigate: NavigateFunction
+  navigate: NavigateFunction,
+  updateError: UpdateError
 ) => {
   if (res.ok) {
     if (schema) {
@@ -25,9 +27,7 @@ const handleResponse = async <Res extends z.ZodTypeAny>(
     navigate('/login', { state: { from: location }, replace: true })
     return null
   } else {
-    throw new Error(
-      res.body ? `${res.statusText}: ${await res.text()}` : res.statusText
-    )
+    updateError(res.statusText, res.body ? await res.text() : undefined)
   }
 }
 
@@ -36,6 +36,7 @@ const query = <Req = null>(endpoint: Endpoint) => {
     (req: Req) => {
       const location = useLocation()
       const navigate = useNavigate()
+      const updateError = useUpdateError()
       const url = `/api/${endpoint}?${new URLSearchParams(req ?? {})}`
       const token = localStorage.getItem('token')
       const headers: [string, string][] = token
@@ -46,7 +47,7 @@ const query = <Req = null>(endpoint: Endpoint) => {
         queryKey: ['get', endpoint, req],
         queryFn: async ({ signal }) => {
           const res = await fetch(url, { signal, method: 'get', headers })
-          return handleResponse(res, schema, location, navigate)
+          return handleResponse(res, schema, location, navigate, updateError)
         },
       })
     }
@@ -58,6 +59,7 @@ const mutate = <Req = null>(method: 'post' | 'delete', endpoint: Endpoint) => {
     () => {
       const location = useLocation()
       const navigate = useNavigate()
+      const updateError = useUpdateError()
       const token = localStorage.getItem('token')
 
       let headers = new Headers()
@@ -82,7 +84,7 @@ const mutate = <Req = null>(method: 'post' | 'delete', endpoint: Endpoint) => {
                     }
                   : options
               ))
-          return handleResponse(res, schema, location, navigate)
+          return handleResponse(res, schema, location, navigate, updateError)
         },
       })
     }
