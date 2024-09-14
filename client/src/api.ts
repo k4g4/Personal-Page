@@ -21,11 +21,9 @@ const handleResponse = async <Res extends z.ZodTypeAny>(
     if (schema) {
       return schema.parse(await res.json()) as z.infer<Res>
     }
-    return
   } else if (res.status === 401) {
     localStorage.removeItem('token')
     navigate('/login', { state: { from: location }, replace: true })
-    return null
   } else {
     updateError(res.statusText, res.body ? await res.text() : undefined)
   }

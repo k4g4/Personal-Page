@@ -6,13 +6,11 @@ mod recompiler;
 
 use anyhow::Result;
 use axum::Router;
-use axum_extra::middleware;
 use clap::Parser;
-use futures::{future::OptionFuture, FutureExt};
 use recompiler::Recompiler;
 use sqlx::{migrate, SqlitePool};
-use std::{env, time::Duration};
-use tokio::{net::TcpListener, signal, time};
+use std::env;
+use tokio::{net::TcpListener, signal};
 use tower_http::{
     services::{ServeDir, ServeFile},
     trace::TraceLayer,
@@ -21,25 +19,21 @@ use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 const ADDR: &str = "0.0.0.0:3000";
-const MOD_TIMES: &str = "modtimes.json";
 const DIST_DIR: &str = "../dist";
 const INDEX_PATH: &str = "../dist/index.html";
-const CLIENT_DIR: &str = "../client";
-const INPUT_CSS: &str = "input.css";
-const INDEX_CSS: &str = "index.css";
 
 /// A personal webpage for practicing web development
 #[derive(clap::Parser)]
 struct Args {
-    /// Enable dev mode
+    /// Enable watch mode
     #[arg(long)]
-    dev: bool,
+    watch: bool,
 }
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let Args { dev } = Args::parse();
-    let recompiler = dev.then(Recompiler::load);
+    let Args { watch } = Args::parse();
+    let recompiler = watch.then(Recompiler::start).transpose()?;
 
     dotenvy::dotenv()?;
 
@@ -52,21 +46,22 @@ async fn main() -> Result<()> {
             "/",
             ServeDir::new(DIST_DIR).fallback(ServeFile::new(INDEX_PATH)),
         )
-        .layer(middleware::option_layer(
-            OptionFuture::from(recompiler).await.transpose()?,
-        ))
         .nest("/api", api::routes(pool).layer(TraceLayer::new_for_http()));
 
     Registry::default().with(fmt::layer()).init();
-    info!(
-        "running server in {} mode on {ADDR}",
-        if dev { "dev" } else { "production" }
-    );
+    info!("running server on {ADDR}",);
 
     axum::serve(TcpListener::bind(ADDR).await?, routes)
-        .with_graceful_shutdown(signal::ctrl_c().map(|_| ()))
+        .with_graceful_shutdown(async {
+            signal::ctrl_c().await.expect("failed to listen for ctrl-c");
+            if let Some(recompiler) = recompiler {
+                recompiler
+                    .stop()
+                    .await
+                    .expect("failed to stop watch processes");
+            }
+        })
         .await?;
-    time::sleep(Duration::from_millis(50)).await;
 
     Ok(())
 }
