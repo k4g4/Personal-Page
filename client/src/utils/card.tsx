@@ -1,5 +1,12 @@
 import { forwardRef, type HTMLAttributes } from 'react'
 import { cn } from '@/utils/cn'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import {
+  faAngleDown,
+  faAngleUp,
+  faXmark,
+} from '@fortawesome/free-solid-svg-icons'
+import { useCardActions } from '@/pages/Home'
 
 const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
@@ -19,7 +26,7 @@ const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
     <div
       ref={ref}
-      className={cn('flex flex-col space-y-1.5 p-6', className)}
+      className={cn('flex flex-col w-96 p-6', className)}
       {...props}
     />
   )
@@ -29,17 +36,35 @@ CardHeader.displayName = 'CardHeader'
 const CardTitle = forwardRef<
   HTMLParagraphElement,
   HTMLAttributes<HTMLHeadingElement>
->(({ className, ...props }, ref) => (
-  // eslint-disable-next-line jsx-a11y/heading-has-content
-  <h3
-    ref={ref}
-    className={cn(
-      'text-2xl font-semibold leading-none tracking-tight',
-      className
-    )}
-    {...props}
-  />
-))
+>(({ className, ...props }, ref) => {
+  const { moveDown, moveUp, remove } = useCardActions()
+  return (
+    <div ref={ref} className='flex justify-between'>
+      {/*eslint-disable jsx-a11y/heading-has-content */}
+      <h3
+        className={cn('text-2xl font-semibold leading-none', className)}
+        {...props}
+      />
+      <div className='flex justify-between gap-4'>
+        <FontAwesomeIcon
+          className='cursor-pointer'
+          onClick={moveDown}
+          icon={faAngleDown}
+        />
+        <FontAwesomeIcon
+          className='cursor-pointer'
+          onClick={moveUp}
+          icon={faAngleUp}
+        />
+        <FontAwesomeIcon
+          className='cursor-pointer'
+          onClick={remove}
+          icon={faXmark}
+        />
+      </div>
+    </div>
+  )
+})
 CardTitle.displayName = 'CardTitle'
 
 const CardDescription = forwardRef<

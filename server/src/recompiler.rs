@@ -11,7 +11,7 @@ const CLIENT_DIR: &str = "../client";
 const TAILWIND_IN: &str = "input.css";
 const TAILWIND_OUT: &str = "../dist/index.css";
 const BUILD_IN: &str = "src/index.tsx";
-const BUILD_OUT: &str = "../dist/index.js";
+const BUILD_OUT: &str = "../dist";
 
 #[allow(unused)]
 pub struct Recompiler([Child; 2]);
@@ -31,8 +31,9 @@ impl Recompiler {
         let mut build = spawn(&[
             "build",
             BUILD_IN,
-            "--outfile",
+            "--outdir",
             BUILD_OUT,
+            "--sourcemap=linked",
             "--minify",
             "--watch",
             "--no-clear-screen",
