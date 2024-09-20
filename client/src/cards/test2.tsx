@@ -9,11 +9,11 @@ import {
 } from '@/utils/card'
 
 export default function Test2({
-  state: { emojis },
+  state,
   setState,
 }: CardProps<{ emojis: number }>) {
   const resize = useResize()
-  const content = '💡'.repeat(emojis)
+  const content = '💡'.repeat(state?.emojis ?? 0)
 
   return (
     <Card>
@@ -26,10 +26,12 @@ export default function Test2({
       <CardFooter>
         <Button
           onClick={resize(() =>
-            setState(({ emojis }) => ({ emojis: emojis * 2 }))
+            setState((state) => ({
+              emojis: state?.emojis ? state.emojis * 2 : 1,
+            }))
           )}
         >
-          Test 2
+          💡
         </Button>
       </CardFooter>
     </Card>

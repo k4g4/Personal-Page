@@ -6,7 +6,7 @@ import {
   faAngleUp,
   faXmark,
 } from '@fortawesome/free-solid-svg-icons'
-import { useCardActions } from '@/pages/Home'
+import { useCardActions, useResize } from '@/pages/Home'
 
 const Card = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(
   ({ className, ...props }, ref) => (
@@ -37,6 +37,7 @@ const CardTitle = forwardRef<
   HTMLParagraphElement,
   HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => {
+  const resize = useResize()
   const { moveDown, moveUp, remove } = useCardActions()
   return (
     <div ref={ref} className='flex justify-between'>
@@ -48,17 +49,17 @@ const CardTitle = forwardRef<
       <div className='flex justify-between gap-4'>
         <FontAwesomeIcon
           className='cursor-pointer'
-          onClick={moveDown}
+          onClick={resize(moveDown)}
           icon={faAngleDown}
         />
         <FontAwesomeIcon
           className='cursor-pointer'
-          onClick={moveUp}
+          onClick={resize(moveUp)}
           icon={faAngleUp}
         />
         <FontAwesomeIcon
           className='cursor-pointer'
-          onClick={remove}
+          onClick={resize(remove)}
           icon={faXmark}
         />
       </div>

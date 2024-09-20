@@ -8,12 +8,9 @@ import {
   CardTitle,
 } from '@/utils/card'
 
-export default function Test({
-  state: { n },
-  setState,
-}: CardProps<{ n: string }>) {
+export default function Test({ state, setState }: CardProps<{ n: string }>) {
   const resize = useResize()
-  const content = '😝'.repeat(parseInt(n))
+  const content = '😝'.repeat(parseInt(state?.n ?? '0'))
 
   return (
     <Card>
@@ -26,10 +23,12 @@ export default function Test({
       <CardFooter>
         <Button
           onClick={resize(() =>
-            setState(({ n }) => ({ n: (parseInt(n) * 2).toString() }))
+            setState((state) => ({
+              n: (state?.n ? parseInt(state.n) * 2 : 1).toString(),
+            }))
           )}
         >
-          Test 1
+          😝
         </Button>
       </CardFooter>
     </Card>

@@ -12,37 +12,42 @@ import React, {
 import Test from '@/cards/test'
 import Test2 from '@/cards/test2'
 import { create } from 'zustand'
+import type { UnionToIntersection } from 'node_modules/react-hook-form/dist/types/path/common'
 
 export type CardProps<S> = {
-  state: S
-  setState: (update: (state: S) => S) => void
+  state?: S
+  setState: (update: (state?: S) => S) => void
 }
 
 const CARDS = (<C extends { [key: string]: FC<CardProps<any>> }>(cards: C): C =>
   cards)({
   test: Test,
-  test2: Test2,
+  testTwo: Test2,
 })
 
 type CardName = keyof typeof CARDS
+const CARD_NAMES = Object.keys(CARDS) as CardName[]
+
+const displayCardName = (name: CardName) =>
+  name[0].toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1')
 
 type CardStates = {
   [N in CardName]: ComponentProps<(typeof CARDS)[N]>['state']
 }
 
 type Card = {
-  [N in CardName]: { name: N; id: number; state: CardStates[N] }
+  [N in CardName]: { name: N; id: number; state?: CardStates[N] }
 }[CardName]
+
+type SetCardState<N extends CardName> = CardProps<CardStates[N]>['setState']
 
 type CardsStore = {
   cards: Card[]
   moveDown: (n: number) => void
   moveUp: (n: number) => void
   remove: (n: number) => void
-  setState: <N extends CardName>(
-    name: N,
-    id: number
-  ) => (update: (state: CardStates[N]) => CardStates[N]) => void
+  setState: <N extends CardName>(name: N, id: number) => SetCardState<N>
+  addCard: (name: CardName) => void
 }
 
 type Resizer = {
@@ -56,10 +61,7 @@ type Resizer = {
 }
 
 const useCardsStore = create<CardsStore & Resizer>((set) => ({
-  cards: [
-    { name: 'test', id: 0, state: { n: '10' } },
-    { name: 'test2', id: 0, state: { emojis: 2 } },
-  ],
+  cards: CARD_NAMES.map((name) => ({ name, id: 0 })),
 
   moveDown: (pos) =>
     set((state) => ({
@@ -98,6 +100,22 @@ const useCardsStore = create<CardsStore & Resizer>((set) => ({
           ? { ...card, state: update(card.state as CardStates[typeof name]) }
           : card
       ) as Card[],
+    })),
+
+  addCard: (name) =>
+    set(({ cards }) => ({
+      cards: [
+        ...cards,
+        {
+          name,
+          id:
+            cards.reduce(
+              (maxId, card) =>
+                card.name === name && card.id > maxId ? card.id : maxId,
+              -1
+            ) + 1,
+        },
+      ],
     })),
 
   resizeSignal: false,
@@ -142,7 +160,9 @@ export default function Home() {
   const navigate = useNavigate()
   const { mutate: postLogout } = usePostLogout()
   const cardsRef = useRef<HTMLDivElement>(null)
+  const resize = useResize()
   const resizeSignal = useCardsStore((state) => state.resizeSignal)
+  const addCard = useCardsStore((state) => state.addCard)
   const cards = useCardsStore((state) => state.cards).map(
     ({ name, state, id }, pos) => {
       const Card = CARDS[name]
@@ -151,7 +171,20 @@ export default function Home() {
         <div className='card' key={pos}>
           <CardContext.Provider value={{ pos }}>
             {/* typescript can't narrow the card state, but we know it's correct */}
-            <Card state={state as any} setState={setState as any} />
+            <Card
+              state={
+                state as
+                  | UnionToIntersection<CardStates[typeof name]>
+                  | undefined
+              }
+              setState={
+                setState as UnionToIntersection<
+                  {
+                    [N in CardName]: SetCardState<N>
+                  }[CardName]
+                >
+              }
+            />
           </CardContext.Provider>
         </div>
       )
@@ -201,6 +234,13 @@ export default function Home() {
       >
         {cards}
       </div>
+      <footer className='flex gap-4'>
+        {CARD_NAMES.map((name) => (
+          <Button key={name} onClick={resize(() => addCard(name))}>
+            {displayCardName(name)}
+          </Button>
+        ))}
+      </footer>
     </div>
   )
 }
