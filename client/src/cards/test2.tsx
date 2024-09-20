@@ -8,17 +8,17 @@ import {
   CardTitle,
 } from '@/utils/card'
 
-export default function Test({
-  state: { n },
+export default function Test2({
+  state: { emojis },
   setState,
-}: CardProps<{ n: string }>) {
+}: CardProps<{ emojis: number }>) {
   const resize = useResize()
-  const content = '😝'.repeat(parseInt(n))
+  const content = '💡'.repeat(emojis)
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Test 1</CardTitle>
+        <CardTitle>Test 2</CardTitle>
       </CardHeader>
       <CardContent>
         <p>{content}</p>
@@ -26,10 +26,10 @@ export default function Test({
       <CardFooter>
         <Button
           onClick={resize(() =>
-            setState(({ n }) => ({ n: (parseInt(n) * 2).toString() }))
+            setState(({ emojis }) => ({ emojis: emojis * 2 }))
           )}
         >
-          Test 1
+          Test 2
         </Button>
       </CardFooter>
     </Card>

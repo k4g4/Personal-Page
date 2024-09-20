@@ -1,30 +1,48 @@
 import { useNavigate } from 'react-router-dom'
 import { usePostLogout } from '@/api'
 import { Button } from '@/utils/button'
-import { createContext, useContext, useEffect, useRef, type FC } from 'react'
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  type ComponentProps,
+  type FC,
+} from 'react'
 import Test from '@/cards/test'
+import Test2 from '@/cards/test2'
 import { create } from 'zustand'
 
-const CARDS = [
-  Test,
-  Test,
-  Test,
-  Test,
-  Test,
-  Test,
-  Test,
-  Test,
-  Test,
-  Test,
-  Test,
-  Test,
-]
+export type CardProps<S> = {
+  state: S
+  setState: (update: (state: S) => S) => void
+}
+
+const CARDS = (<C extends { [key: string]: FC<CardProps<any>> }>(cards: C): C =>
+  cards)({
+  test: Test,
+  test2: Test2,
+})
+
+type CardName = keyof typeof CARDS
+
+type CardStates = {
+  [N in CardName]: ComponentProps<(typeof CARDS)[N]>['state']
+}
+
+type Card = {
+  [N in CardName]: { name: N; id: number; state: CardStates[N] }
+}[CardName]
 
 type CardsStore = {
-  cards: FC[]
+  cards: Card[]
   moveDown: (n: number) => void
   moveUp: (n: number) => void
   remove: (n: number) => void
+  setState: <N extends CardName>(
+    name: N,
+    id: number
+  ) => (update: (state: CardStates[N]) => CardStates[N]) => void
 }
 
 type Resizer = {
@@ -37,37 +55,50 @@ type Resizer = {
   ) => (...args: Args) => Promise<Ret>
 }
 
-export const useCardsStore = create<CardsStore & Resizer>((set) => ({
-  cards: CARDS,
+const useCardsStore = create<CardsStore & Resizer>((set) => ({
+  cards: [
+    { name: 'test', id: 0, state: { n: '10' } },
+    { name: 'test2', id: 0, state: { emojis: 2 } },
+  ],
 
-  moveDown: (n) =>
+  moveDown: (pos) =>
     set((state) => ({
       cards:
-        n < state.cards.length - 1
+        pos < state.cards.length - 1
           ? [
-              ...state.cards.slice(0, n),
-              state.cards[n + 1],
-              state.cards[n],
-              ...state.cards.slice(n + 2),
+              ...state.cards.slice(0, pos),
+              state.cards[pos + 1],
+              state.cards[pos],
+              ...state.cards.slice(pos + 2),
             ]
           : state.cards,
     })),
 
-  moveUp: (n) =>
+  moveUp: (pos) =>
     set((state) => ({
       cards:
-        n > 0
+        pos > 0
           ? [
-              ...state.cards.slice(0, n - 1),
-              state.cards[n],
-              state.cards[n - 1],
-              ...state.cards.slice(n + 1),
+              ...state.cards.slice(0, pos - 1),
+              state.cards[pos],
+              state.cards[pos - 1],
+              ...state.cards.slice(pos + 1),
             ]
           : state.cards,
     })),
 
-  remove: (n) =>
-    set((state) => ({ cards: state.cards.filter((_, i) => i !== n) })),
+  remove: (pos) =>
+    set((state) => ({ cards: state.cards.filter((_, i) => i !== pos) })),
+
+  setState: (name, id) => (update) =>
+    // typescript is really struggling to keep up
+    set(({ cards }) => ({
+      cards: cards.map((card) =>
+        card.name === name && card.id === id
+          ? { ...card, state: update(card.state as CardStates[typeof name]) }
+          : card
+      ) as Card[],
+    })),
 
   resizeSignal: false,
 
@@ -88,32 +119,44 @@ export const useCardsStore = create<CardsStore & Resizer>((set) => ({
     },
 }))
 
-const CardIdContext = createContext(0)
+const getSetCardState = <N extends CardName>(name: N, id: number) =>
+  useCardsStore.getState().setState(name, id)
+
+const CardContext = createContext({ pos: 0 })
 
 export const useCardActions = () => {
-  const cardId = useContext(CardIdContext)
+  const { pos } = useContext(CardContext)
   const moveDown = useCardsStore((state) => state.moveDown)
   const moveUp = useCardsStore((state) => state.moveUp)
   const remove = useCardsStore((state) => state.remove)
   return {
-    moveDown: () => moveDown(cardId),
-    moveUp: () => moveUp(cardId),
-    remove: () => remove(cardId),
+    moveDown: () => moveDown(pos),
+    moveUp: () => moveUp(pos),
+    remove: () => remove(pos),
   }
 }
+
+export const useResize = () => useCardsStore((state) => state.resize)
 
 export default function Home() {
   const navigate = useNavigate()
   const { mutate: postLogout } = usePostLogout()
   const cardsRef = useRef<HTMLDivElement>(null)
   const resizeSignal = useCardsStore((state) => state.resizeSignal)
-  const cards = useCardsStore((state) => state.cards).map((Card, n) => (
-    <div className='card' key={n}>
-      <CardIdContext.Provider value={n}>
-        <Card />
-      </CardIdContext.Provider>
-    </div>
-  ))
+  const cards = useCardsStore((state) => state.cards).map(
+    ({ name, state, id }, pos) => {
+      const Card = CARDS[name]
+      const setState = getSetCardState(name, id)
+      return (
+        <div className='card' key={pos}>
+          <CardContext.Provider value={{ pos }}>
+            {/* typescript can't narrow the card state, but we know it's correct */}
+            <Card state={state as any} setState={setState as any} />
+          </CardContext.Provider>
+        </div>
+      )
+    }
+  )
 
   useEffect(() => {
     if (cardsRef.current) {
