@@ -1,4 +1,4 @@
-import React from 'react'
+import { StrictMode } from 'react'
 import ReactDOM from 'react-dom/client'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
 import { BrowserRouter } from 'react-router-dom'
@@ -9,7 +9,7 @@ import { ErrorProvider } from '@/utils/error'
 const queryClient = new QueryClient()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+  <StrictMode>
     <QueryClientProvider client={queryClient}>
       <ErrorProvider>
         <BrowserRouter>
@@ -18,5 +18,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       </ErrorProvider>
       <ReactQueryDevtools />
     </QueryClientProvider>
-  </React.StrictMode>
+  </StrictMode>
 )

@@ -75,6 +75,19 @@ schema! {
     struct Token {
         token: String,
     }
+
+    enum CardName {
+        Test,
+        TestTwo,
+    }
+
+    struct Card {
+        name: CardName,
+        id: u32,
+    }
+
+    #[serde(transparent)]
+    struct CardsLayout(Vec<Card>);
 }
 
 routes! {
@@ -164,5 +177,11 @@ routes! {
         debug!("logging out: {user}");
 
         StatusCode::OK
+    }
+
+    get cards(User(user): User, State(pool): State<SqlitePool>) -> ApiResult<CardsLayout> {
+        debug!("card layout: {user}");
+
+        Ok(Payload(CardsLayout(vec![Card { name: CardName::Test, id: 0 }, Card { name: CardName::TestTwo, id: 0 }])))
     }
 }

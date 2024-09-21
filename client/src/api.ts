@@ -7,8 +7,9 @@ import {
   type Location,
 } from 'react-router-dom'
 import { useUpdateError, type UpdateError } from '@/utils/error'
+import { CARD_NAMES } from './pages/Home'
 
-type Endpoint = 'login' | 'signup' | 'logout'
+type Endpoint = 'login' | 'signup' | 'logout' | 'cards'
 
 const handleResponse = async <Res extends z.ZodTypeAny>(
   res: Response,
@@ -19,7 +20,14 @@ const handleResponse = async <Res extends z.ZodTypeAny>(
 ) => {
   if (res.ok) {
     if (schema) {
-      return schema.parse(await res.json()) as z.infer<Res>
+      try {
+        return schema.parse(await res.json()) as z.infer<Res>
+      } catch (err) {
+        if (err instanceof z.ZodError) {
+          updateError('Invalid response', err.issues.at(0)?.message ?? '')
+          return
+        }
+      }
     }
   } else if (res.status === 401) {
     localStorage.removeItem('token')
@@ -112,6 +120,29 @@ export type Credentials = z.infer<typeof credentials>
 
 const token = z.object({ token: z.string() })
 
+const cardsLayout = z.array(
+  z.object({
+    name: z.string().transform((name, ctx) => {
+      const index = (CARD_NAMES as string[]).indexOf(name)
+      if (index === -1) {
+        ctx.addIssue({
+          code: 'invalid_literal',
+          expected: CARD_NAMES.join(' | '),
+          received: name,
+          message: `Invalid card name: ${name}`,
+          path: ['name'],
+        })
+      }
+      return CARD_NAMES[index]
+    }),
+    id: z.number(),
+  })
+)
+export type CardsLayout = z.infer<typeof cardsLayout>
+
 export const usePostLogin = mutate<Credentials>('post', 'login')(token)
 export const usePostSignup = mutate<Credentials>('post', 'signup')(token)
 export const usePostLogout = mutate('post', 'logout')()
+
+export const useGetCardsLayout = query('cards')(cardsLayout)
+export const usePostCardsLayout = mutate<CardsLayout>('post', 'cards')()

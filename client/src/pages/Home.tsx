@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { usePostLogout } from '@/api'
+import { useGetCardsLayout, usePostLogout } from '@/api'
 import { Button } from '@/utils/button'
 import React, {
   createContext,
@@ -26,7 +26,7 @@ const CARDS = (<C extends { [key: string]: FC<CardProps<any>> }>(cards: C): C =>
 })
 
 type CardName = keyof typeof CARDS
-const CARD_NAMES = Object.keys(CARDS) as CardName[]
+export const CARD_NAMES = Object.keys(CARDS) as CardName[]
 
 const displayCardName = (name: CardName) =>
   name[0].toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1')
@@ -43,6 +43,7 @@ type SetCardState<N extends CardName> = CardProps<CardStates[N]>['setState']
 
 type CardsStore = {
   cards: Card[]
+  init: (cards: Card[]) => void
   moveDown: (n: number) => void
   moveUp: (n: number) => void
   remove: (n: number) => void
@@ -61,7 +62,9 @@ type Resizer = {
 }
 
 const useCardsStore = create<CardsStore & Resizer>((set) => ({
-  cards: CARD_NAMES.map((name) => ({ name, id: 0 })),
+  cards: [],
+
+  init: (cards) => set({ cards }),
 
   moveDown: (pos) =>
     set((state) => ({
@@ -154,6 +157,54 @@ export const useCardActions = () => {
   }
 }
 
+const useCards = () => {
+  const resize = useResize()
+  const init = useCardsStore.getState().init
+  const cards = useCardsStore((state) => state.cards)
+  const { data: serverCards } = useGetCardsLayout(null)
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(
+    resize(() => {
+      console.log('in useEffect outer')
+      if (serverCards) {
+        console.log('in useEffect inner')
+        init(
+          serverCards.length
+            ? serverCards.map(({ name, id }) => ({ name, id }))
+            : CARD_NAMES.map((name) => ({ name, id: 0 }))
+        )
+      }
+    }),
+    [serverCards]
+  )
+  console.log('in useCards')
+
+  return cards.map(({ name, state, id }, pos) => {
+    const Card = CARDS[name]
+    const setState = getSetCardState(name, id)
+    return (
+      <div className='card' key={pos}>
+        <CardContext.Provider value={{ pos }}>
+          {/* typescript can't narrow the card state, but we know it's correct */}
+          <Card
+            state={
+              state as UnionToIntersection<CardStates[typeof name]> | undefined
+            }
+            setState={
+              setState as UnionToIntersection<
+                {
+                  [N in CardName]: SetCardState<N>
+                }[CardName]
+              >
+            }
+          />
+        </CardContext.Provider>
+      </div>
+    )
+  })
+}
+
 export const useResize = () => useCardsStore((state) => state.resize)
 
 export default function Home() {
@@ -163,33 +214,7 @@ export default function Home() {
   const resize = useResize()
   const resizeSignal = useCardsStore((state) => state.resizeSignal)
   const addCard = useCardsStore((state) => state.addCard)
-  const cards = useCardsStore((state) => state.cards).map(
-    ({ name, state, id }, pos) => {
-      const Card = CARDS[name]
-      const setState = getSetCardState(name, id)
-      return (
-        <div className='card' key={pos}>
-          <CardContext.Provider value={{ pos }}>
-            {/* typescript can't narrow the card state, but we know it's correct */}
-            <Card
-              state={
-                state as
-                  | UnionToIntersection<CardStates[typeof name]>
-                  | undefined
-              }
-              setState={
-                setState as UnionToIntersection<
-                  {
-                    [N in CardName]: SetCardState<N>
-                  }[CardName]
-                >
-              }
-            />
-          </CardContext.Provider>
-        </div>
-      )
-    }
-  )
+  const cards = useCards()
 
   useEffect(() => {
     if (cardsRef.current) {
