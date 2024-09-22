@@ -34,7 +34,6 @@ impl Recompiler {
             "--outdir",
             BUILD_OUT,
             "--sourcemap=linked",
-            "--minify",
             "--watch",
             "--no-clear-screen",
         ])?;

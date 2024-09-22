@@ -159,16 +159,14 @@ export const useCardActions = () => {
 
 const useCards = () => {
   const resize = useResize()
-  const init = useCardsStore.getState().init
+  const init = useCardsStore((state) => state.init)
   const cards = useCardsStore((state) => state.cards)
   const { data: serverCards } = useGetCardsLayout(null)
 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(
     resize(() => {
-      console.log('in useEffect outer')
       if (serverCards) {
-        console.log('in useEffect inner')
         init(
           serverCards.length
             ? serverCards.map(({ name, id }) => ({ name, id }))
@@ -178,7 +176,6 @@ const useCards = () => {
     }),
     [serverCards]
   )
-  console.log('in useCards')
 
   return cards.map(({ name, state, id }, pos) => {
     const Card = CARDS[name]

@@ -4,3 +4,4 @@
 /server/target
 /server/.env
 /server/personalpage.db*
+deploy.sh
