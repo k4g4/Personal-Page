@@ -1,4 +1,4 @@
-use crate::models::ids::UserId;
+use crate::schema::ids::UserId;
 use anyhow::Result;
 use jsonwebtoken::{DecodingKey, EncodingKey, Validation};
 use serde::{Deserialize, Serialize};

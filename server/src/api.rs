@@ -1,19 +1,17 @@
 use crate::{
-    extractors::{payload::Payload, user::User},
+    extract::{payload::Payload, user::User},
     jwt::Claim,
-    models::{
+    schema::{
+        api, db,
         ids::{CardId, UserId},
-        schema::{Cards, Users},
     },
 };
 use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
 use axum::{extract::State, http::StatusCode, Router};
-use serde::{de::Error, Deserialize, Deserializer, Serialize};
 use sqlx::{
     error::{Error as SqlxError, ErrorKind},
     query, query_as, QueryBuilder, SqlitePool,
 };
-use tracing::debug;
 
 trait MapResult {
     type Result;
@@ -25,16 +23,6 @@ impl<T: Sized> MapResult for T {
     type Result = Payload<T>;
 }
 type ApiResult<T = [()]> = axum::response::Result<<T as MapResult>::Result>;
-
-macro_rules! schema {
-    ($( $name:item )*) => {
-        $(
-            #[derive(Clone, Serialize, Deserialize, Debug)]
-            #[serde(rename_all = "camelCase")]
-            $name
-        )*
-    }
-}
 
 macro_rules! routes {
     ($($method:ident $endpoint:ident$args:tt -> $ret:ty $body:block)*) => {
@@ -55,68 +43,16 @@ macro_rules! routes {
     }
 }
 
-fn username<'de, D: Deserializer<'de>>(deser: D) -> Result<String, D::Error> {
-    let username = <&str>::deserialize(deser)?;
-
-    if (4..=16).contains(&username.len())
-        && username
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '_')
-    {
-        Ok(username.into())
-    } else {
-        Err(D::Error::custom("Invalid username"))
-    }
-}
-
-fn password<'de, D: Deserializer<'de>>(deser: D) -> Result<String, D::Error> {
-    let password = <&str>::deserialize(deser)?;
-
-    if (6..=16).contains(&password.len()) && !password.chars().any(char::is_whitespace) {
-        Ok(password.into())
-    } else {
-        Err(D::Error::custom("Invalid password"))
-    }
-}
-
-schema! {
-    struct Credentials {
-        #[serde(deserialize_with = "username")]
-        username: String,
-        #[serde(deserialize_with = "password")]
-        password: String,
-    }
-
-    struct Token {
-        token: String,
-    }
-
-    enum CardName {
-        Test,
-        TestTwo,
-    }
-
-    struct Card {
-        name: CardName,
-        id: u32,
-    }
-
-    #[serde(transparent)]
-    struct CardsLayout(Vec<Card>);
-}
-
 routes! {
     post login(
         State(pool): State<SqlitePool>,
-        Payload(Credentials { username, password }): Payload<Credentials>,
-    ) -> ApiResult<Token> {
+        Payload(api::Credentials { username, password }): Payload<api::Credentials>,
+    ) -> ApiResult<api::Token> {
         let generic_error = (StatusCode::INTERNAL_SERVER_ERROR, "Failed to log in");
         let invalid_login = (StatusCode::BAD_REQUEST, "Invalid username/password");
 
-        debug!("logging in: {username} password: {password}");
-
-        let Users { id, password_hash, password_salt_b64, .. } = query_as!(
-            Users,
+        let db::User { id, password_hash, password_salt_b64, .. } = query_as!(
+            db::User,
             r#"
             SELECT id as "id: _", username, password_hash, password_salt_b64
             FROM users WHERE username = ?
@@ -136,18 +72,16 @@ routes! {
         } else {
             Claim::new(id)
                 .encode()
-                .map(|token| Payload(Token { token }))
+                .map(|token| Payload(api::Token { token }))
                 .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into())
         }
     }
 
     post signup(
         State(pool): State<SqlitePool>,
-        Payload(Credentials { username, password }): Payload<Credentials>,
-    ) -> ApiResult<Token> {
+        Payload(api::Credentials { username, password }): Payload<api::Credentials>,
+    ) -> ApiResult<api::Token> {
         let generic_error = (StatusCode::INTERNAL_SERVER_ERROR, "Failed to sign up");
-
-        debug!("signing up: {username} password: {password}");
 
         let salt = SaltString::generate(&mut rand::thread_rng());
         let hash = Argon2::default()
@@ -182,22 +116,20 @@ routes! {
         } else {
             Claim::new(id)
                 .encode()
-                .map(|token| Payload(Token { token }))
+                .map(|token| Payload(api::Token { token }))
                 .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Failed to create token").into())
         }
     }
 
-    post logout(User(user): User) -> ApiResult {
-        debug!("logging out: {user}");
-
+    post logout(User(_user): User) -> ApiResult {
         Ok(())
     }
 
-    get cards(User(user): User, State(pool): State<SqlitePool>) -> ApiResult<CardsLayout> {
-        debug!("get card layout: {user}");
+    get cards(User(user): User, State(pool): State<SqlitePool>) -> ApiResult<Vec<api::Card>> {
+        let generic_error = (StatusCode::INTERNAL_SERVER_ERROR, "Failed to get card layout");
 
         let cards = query_as!(
-            Cards,
+            db::Card,
             r#"
             SELECT id as "id: _", user_id as "user_id: _", name, pos
             FROM cards
@@ -208,20 +140,18 @@ routes! {
         )
             .fetch_all(&pool)
             .await
-            .map_err(|_| ())?;
+            .map_err(|_| generic_error)?;
 
-        Ok(Payload(CardsLayout(cards.into_iter().map(|Cards { name, .. }| -> Result<_, ()> {
-            Ok(Card { name: serde_json::from_str(&name).map_err(|_| ())?, id: 0 })
-        }).collect::<Result<Vec<_>, _>>()?)))
+        Ok(Payload(cards.into_iter().map(|db::Card { name, .. }|
+            Ok(api::Card { name: serde_json::from_str(&name).map_err(|_| generic_error)?, id: 0 }),
+        ).collect::<Result<Vec<_>, (_, _)>>()?))
     }
 
     post cards(
         User(user): User,
         State(pool): State<SqlitePool>,
-        Payload(CardsLayout(cards)): Payload<CardsLayout>,
+        Payload(cards): Payload<Vec<api::Card>>,
     ) -> ApiResult {
-        debug!("post card layout: {user}");
-
         let generic_error = (StatusCode::INTERNAL_SERVER_ERROR, "Failed to post card layout");
 
         query!("DELETE FROM cards WHERE user_id = ?", user).execute(&pool).await.map_err(|_| generic_error)?;
@@ -237,13 +167,7 @@ routes! {
             .build()
             .execute(&pool)
             .await
-            .map_err(|err|
-                match err {
-                    SqlxError::Database(err) if err.kind() == ErrorKind::UniqueViolation =>
-                        (StatusCode::BAD_REQUEST, "This username is taken"),
-                    _ => generic_error,
-                }
-            )?;
+            .map_err(|_| generic_error)?;
 
         Ok(())
     }

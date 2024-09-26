@@ -1,4 +1,4 @@
-use crate::{jwt::Claim, models::ids::UserId};
+use crate::{jwt::Claim, schema::ids::UserId};
 use axum::{
     extract::FromRequestParts,
     http::{request::Parts, StatusCode},

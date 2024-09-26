@@ -1,8 +1,8 @@
 mod api;
-mod extractors;
+mod extract;
 mod jwt;
-mod models;
 mod recompiler;
+mod schema;
 
 use anyhow::Result;
 use axum::Router;

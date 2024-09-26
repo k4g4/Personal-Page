@@ -1,6 +1,6 @@
-use crate::models::ids::{CardId, UserId};
+use super::ids::{CardId, UserId};
 
-pub struct Users {
+pub struct User {
     pub id: UserId,
     #[allow(unused)]
     pub username: String,
@@ -8,7 +8,7 @@ pub struct Users {
     pub password_salt_b64: String,
 }
 
-pub struct Cards {
+pub struct Card {
     pub id: CardId,
     pub user_id: UserId,
     pub name: String,
