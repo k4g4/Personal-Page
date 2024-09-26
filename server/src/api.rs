@@ -131,7 +131,7 @@ routes! {
         let cards = query_as!(
             db::Card,
             r#"
-            SELECT id as "id: _", user_id as "user_id: _", name, pos
+            SELECT id as "id: _", user_id as "user_id: _", name, client_id, pos
             FROM cards
             WHERE user_id = ?
             ORDER BY pos
@@ -142,8 +142,8 @@ routes! {
             .await
             .map_err(|_| generic_error)?;
 
-        Ok(Payload(cards.into_iter().map(|db::Card { name, .. }|
-            Ok(api::Card { name: serde_json::from_str(&name).map_err(|_| generic_error)?, id: 0 }),
+        Ok(Payload(cards.into_iter().map(|db::Card { name, client_id, .. }|
+            Ok(api::Card { name: serde_json::from_str(&name).map_err(|_| generic_error)?, id: client_id }),
         ).collect::<Result<Vec<_>, (_, _)>>()?))
     }
 
@@ -154,15 +154,22 @@ routes! {
     ) -> ApiResult {
         let generic_error = (StatusCode::INTERNAL_SERVER_ERROR, "Failed to post card layout");
 
+        let values = cards
+            .into_iter()
+            .enumerate()
+            .map(|(i, api::Card { name, id })| Ok((i, serde_json::to_string(&name).map_err(|_| generic_error)?, id)))
+            .collect::<Result<Vec<_>, (_, _)>>()?;
+
         query!("DELETE FROM cards WHERE user_id = ?", user).execute(&pool).await.map_err(|_| generic_error)?;
 
-        QueryBuilder::new("INSERT INTO cards (id, user_id, name, pos)")
-            .push_values(cards.into_iter().enumerate(), |mut value, (i, card)| {
-                value
+        QueryBuilder::new("INSERT INTO cards (id, user_id, name, client_id, pos)")
+            .push_values(values, |mut values_builder, (pos, name, id)| {
+                values_builder
                     .push_bind(CardId::default())
                     .push_bind(user)
-                    .push_bind(format!("{:?}", card.name))
-                    .push_bind(i as i64);
+                    .push_bind(name)
+                    .push_bind(id)
+                    .push_bind(pos as i64);
             })
             .build()
             .execute(&pool)

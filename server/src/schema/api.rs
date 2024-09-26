@@ -53,6 +53,6 @@ schema! {
 
     pub struct Card {
         pub name: CardName,
-        pub id: u32,
+        pub id: i64,
     }
 }

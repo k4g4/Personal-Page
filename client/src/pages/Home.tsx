@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { useGetCardsLayout, usePostLogout } from '@/api'
+import { useGetCardsLayout, usePostCardsLayout, usePostLogout } from '@/api'
 import { Button } from '@/utils/button'
 import React, {
   createContext,
@@ -177,7 +177,21 @@ const useCards = () => {
     [serverCards]
   )
 
-  return cards.map(({ name, state, id }, pos) => {
+  return cards
+}
+
+export const useResize = () => useCardsStore((state) => state.resize)
+
+export default function Home() {
+  const navigate = useNavigate()
+  const { mutate: postLogout } = usePostLogout()
+  const { mutate: postCardsLayout } = usePostCardsLayout()
+  const cardsRef = useRef<HTMLDivElement>(null)
+  const resize = useResize()
+  const resizeSignal = useCardsStore((state) => state.resizeSignal)
+  const addCard = useCardsStore((state) => state.addCard)
+  const cards = useCards()
+  const cardElements = cards.map(({ name, state, id }, pos) => {
     const Card = CARDS[name]
     const setState = getSetCardState(name, id)
     return (
@@ -200,18 +214,6 @@ const useCards = () => {
       </div>
     )
   })
-}
-
-export const useResize = () => useCardsStore((state) => state.resize)
-
-export default function Home() {
-  const navigate = useNavigate()
-  const { mutate: postLogout } = usePostLogout()
-  const cardsRef = useRef<HTMLDivElement>(null)
-  const resize = useResize()
-  const resizeSignal = useCardsStore((state) => state.resizeSignal)
-  const addCard = useCardsStore((state) => state.addCard)
-  const cards = useCards()
 
   useEffect(() => {
     if (cardsRef.current) {
@@ -248,13 +250,16 @@ export default function Home() {
           >
             Logout
           </Button>
+          <Button size='md' onClick={() => postCardsLayout(cards)}>
+            Save
+          </Button>
         </div>
       </div>
       <div
         ref={cardsRef}
         className='px-8 max-w-[calc(min(100vw,1400px))] grid grid-cols-[repeat(auto-fill,400px)] auto-rows-[10px] justify-center items-start gap-x-8 gap-y-4'
       >
-        {cards}
+        {cardElements}
       </div>
       <footer className='flex gap-4'>
         {CARD_NAMES.map((name) => (

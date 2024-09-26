@@ -12,5 +12,6 @@ pub struct Card {
     pub id: CardId,
     pub user_id: UserId,
     pub name: String,
+    pub client_id: i64,
     pub pos: i64,
 }
