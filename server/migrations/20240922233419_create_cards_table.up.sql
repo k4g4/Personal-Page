@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS cards (
+  id VARCHAR(16) NOT NULL PRIMARY KEY,
+  user_id VARCHAR(16) NOT NULL REFERENCES users(id),
+  name VARCHAR NOT NULL,
+  pos INT NOT NULL);
+
+CREATE INDEX IF NOT EXISTS cards_idx ON cards(user_id, pos);

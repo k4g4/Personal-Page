@@ -1,15 +1,30 @@
 use crate::{
     extractors::{payload::Payload, user::User},
     jwt::Claim,
-    models::{ids::UserId, schema::UserTable},
+    models::{
+        ids::{CardId, UserId},
+        schema::{Cards, Users},
+    },
 };
 use argon2::{password_hash::SaltString, Argon2, PasswordHasher};
 use axum::{extract::State, http::StatusCode, Router};
 use serde::{de::Error, Deserialize, Deserializer, Serialize};
-use sqlx::{error::Error as SqlxError, error::ErrorKind, query_as, SqlitePool};
+use sqlx::{
+    error::{Error as SqlxError, ErrorKind},
+    query, query_as, QueryBuilder, SqlitePool,
+};
 use tracing::debug;
 
-type ApiResult<T> = axum::response::Result<Payload<T>>;
+trait MapResult {
+    type Result;
+}
+impl MapResult for [()] {
+    type Result = ();
+}
+impl<T: Sized> MapResult for T {
+    type Result = Payload<T>;
+}
+type ApiResult<T = [()]> = axum::response::Result<<T as MapResult>::Result>;
 
 macro_rules! schema {
     ($( $name:item )*) => {
@@ -100,8 +115,8 @@ routes! {
 
         debug!("logging in: {username} password: {password}");
 
-        let UserTable { id, password_hash, password_salt_b64, .. } = query_as!(
-            UserTable,
+        let Users { id, password_hash, password_salt_b64, .. } = query_as!(
+            Users,
             r#"
             SELECT id as "id: _", username, password_hash, password_salt_b64
             FROM users WHERE username = ?
@@ -142,8 +157,7 @@ routes! {
 
         let id = UserId::default();
         let salt = salt.as_str();
-        let res = query_as!(
-            UserTable,
+        let res = query!(
             r#"
             INSERT INTO users (id, username, password_hash, password_salt_b64)
             VALUES (?, ?, ?, ?)
@@ -173,15 +187,64 @@ routes! {
         }
     }
 
-    post logout(User(user): User) -> StatusCode {
+    post logout(User(user): User) -> ApiResult {
         debug!("logging out: {user}");
 
-        StatusCode::OK
+        Ok(())
     }
 
     get cards(User(user): User, State(pool): State<SqlitePool>) -> ApiResult<CardsLayout> {
-        debug!("card layout: {user}");
+        debug!("get card layout: {user}");
 
-        Ok(Payload(CardsLayout(vec![Card { name: CardName::Test, id: 0 }, Card { name: CardName::TestTwo, id: 0 }])))
+        let cards = query_as!(
+            Cards,
+            r#"
+            SELECT id as "id: _", user_id as "user_id: _", name, pos
+            FROM cards
+            WHERE user_id = ?
+            ORDER BY pos
+            "#,
+            user,
+        )
+            .fetch_all(&pool)
+            .await
+            .map_err(|_| ())?;
+
+        Ok(Payload(CardsLayout(cards.into_iter().map(|Cards { name, .. }| -> Result<_, ()> {
+            Ok(Card { name: serde_json::from_str(&name).map_err(|_| ())?, id: 0 })
+        }).collect::<Result<Vec<_>, _>>()?)))
+    }
+
+    post cards(
+        User(user): User,
+        State(pool): State<SqlitePool>,
+        Payload(CardsLayout(cards)): Payload<CardsLayout>,
+    ) -> ApiResult {
+        debug!("post card layout: {user}");
+
+        let generic_error = (StatusCode::INTERNAL_SERVER_ERROR, "Failed to post card layout");
+
+        query!("DELETE FROM cards WHERE user_id = ?", user).execute(&pool).await.map_err(|_| generic_error)?;
+
+        QueryBuilder::new("INSERT INTO cards (id, user_id, name, pos)")
+            .push_values(cards.into_iter().enumerate(), |mut value, (i, card)| {
+                value
+                    .push_bind(CardId::default())
+                    .push_bind(user)
+                    .push_bind(format!("{:?}", card.name))
+                    .push_bind(i as i64);
+            })
+            .build()
+            .execute(&pool)
+            .await
+            .map_err(|err|
+                match err {
+                    SqlxError::Database(err) if err.kind() == ErrorKind::UniqueViolation =>
+                        (StatusCode::BAD_REQUEST, "This username is taken"),
+                    _ => generic_error,
+                }
+            )?;
+
+        Ok(())
     }
 }

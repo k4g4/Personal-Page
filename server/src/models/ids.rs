@@ -86,3 +86,4 @@ macro_rules! id_type {
 }
 
 id_type!(UserId);
+id_type!(CardId);
