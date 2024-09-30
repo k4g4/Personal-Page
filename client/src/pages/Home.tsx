@@ -1,31 +1,43 @@
 import { useNavigate } from 'react-router-dom'
 import { useGetCardsLayout, usePostCardsLayout, usePostLogout } from '@/api'
 import { Button } from '@/utils/button'
-import React, {
+import {
   createContext,
   useContext,
   useEffect,
   useRef,
+  memo,
   type ComponentProps,
   type FC,
+  type ExoticComponent,
 } from 'react'
-import Test from '@/cards/test'
-import Test2 from '@/cards/test2'
+import Calculator from '@/cards/calculator'
 import { create } from 'zustand'
 import type { UnionToIntersection } from 'node_modules/react-hook-form/dist/types/path/common'
 
-export type CardProps<S> = {
+export type CardProps<S = {}> = {
   state?: S
   setState: (update: (state?: S) => S) => void
 }
 
-const CARDS = (<C extends { [key: string]: FC<CardProps<any>> }>(cards: C): C =>
-  cards)({
-  test: Test,
-  testTwo: Test2,
+const memoize = <C extends { [key: string]: FC<CardProps<any>> }>(cards: C) =>
+  Object.fromEntries(
+    Object.entries(cards).map(([name, Card]) => [
+      name,
+      memo(Card, (prev, next) => prev.state === next.state),
+    ])
+  ) as {
+    [N in keyof C]: ExoticComponent<
+      CardProps<NonNullable<ComponentProps<C[N]>['state']>>
+    >
+  }
+
+const CARDS = memoize({
+  calculator: Calculator,
 })
 
 type CardName = keyof typeof CARDS
+
 export const CARD_NAMES = Object.keys(CARDS) as CardName[]
 
 const displayCardName = (name: CardName) =>

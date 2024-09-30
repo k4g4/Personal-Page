@@ -191,6 +191,7 @@ routes! {
                     .push_bind(pos as i64);
             })
             .build()
+            .persistent(false) // don't cache dynamically sized query
             .execute(&pool)
             .await
             .map_server_err(error)?;

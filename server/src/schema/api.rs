@@ -47,8 +47,7 @@ schema! {
     }
 
     pub enum CardName {
-        Test,
-        TestTwo,
+        Calc,
     }
 
     pub struct Card {

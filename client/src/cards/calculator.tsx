@@ -8,31 +8,22 @@ import {
   CardTitle,
 } from '@/utils/card'
 
-export default function Test2({
+export default function Calculator({
   state,
   setState,
-}: CardProps<{ emojis: number }>) {
+}: CardProps<{ n: number }>) {
   const resize = useResize()
-  const content = '💡'.repeat(state?.emojis ?? 0)
 
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Test 2</CardTitle>
+        <CardTitle>Calculator</CardTitle>
       </CardHeader>
       <CardContent>
-        <p>{content}</p>
+        <p>{}</p>
       </CardContent>
       <CardFooter>
-        <Button
-          onClick={resize(() =>
-            setState((state) => ({
-              emojis: state?.emojis ? state.emojis * 2 : 1,
-            }))
-          )}
-        >
-          💡
-        </Button>
+        <Button onClick={resize(() => console.log('foo'))}>😝</Button>
       </CardFooter>
     </Card>
   )
