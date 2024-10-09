@@ -9,7 +9,7 @@ use axum::Router;
 use clap::Parser;
 use recompiler::Recompiler;
 use sqlx::{migrate, SqlitePool};
-use std::env;
+use std::{env, path::PathBuf};
 use tokio::{net::TcpListener, signal};
 use tower_http::{
     services::{ServeDir, ServeFile},
@@ -19,7 +19,7 @@ use tracing::info;
 use tracing_subscriber::{fmt, layer::SubscriberExt, util::SubscriberInitExt, Registry};
 
 const IP: &str = "0.0.0.0";
-const INDEX_PATH: &str = "../dist/index.html";
+const INDEX: &str = "index.html";
 
 /// A personal webpage for practicing web development
 #[derive(clap::Parser)]
@@ -39,16 +39,16 @@ async fn main() -> Result<()> {
     let pool = SqlitePool::connect(&env::var("DATABASE_URL")?).await?;
     migrate!().run(&pool).await?;
 
+    let dist = PathBuf::from(env::var("DIST")?);
+    let index = dist.join(INDEX);
+
     let routes = Router::new()
-        .nest_service(
-            "/",
-            ServeDir::new(env::var("DIST")?).fallback(ServeFile::new(INDEX_PATH)),
-        )
+        .nest_service("/", ServeDir::new(dist).fallback(ServeFile::new(index)))
         .nest("/api", api::routes(pool).layer(TraceLayer::new_for_http()));
     Registry::default().with(fmt::layer()).init();
 
     let addr = format!("{IP}:{}", env::var("PORT")?);
-    info!("running server on {addr}",);
+    info!("running server on {addr}");
 
     axum::serve(TcpListener::bind(addr).await?, routes)
         .with_graceful_shutdown(async {

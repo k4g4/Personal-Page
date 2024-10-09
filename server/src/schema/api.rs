@@ -47,7 +47,7 @@ schema! {
     }
 
     pub enum CardName {
-        Calc,
+        Calculator,
     }
 
     pub struct Card {

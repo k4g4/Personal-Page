@@ -1,7 +1,10 @@
 /dist
+deploy.sh
+dev.sh
+
 /client/node_modules
 /client/bun.lockb
+
 /server/target
 /server/.env
 /server/personalpage.db*
-deploy.sh
