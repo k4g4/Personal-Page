@@ -10,6 +10,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/utils/card'
+import type { PropsWithChildren } from 'react'
 
 Decimal.set({ precision: 100 })
 
@@ -182,37 +183,17 @@ export default function Calculator({
         <CardTitle>Calculator</CardTitle>
       </CardHeader>
       <CardContent>
-        <p>{displayState(state)}</p>
+        <Panel>{displayState(state)}</Panel>
+        <Keypad />
       </CardContent>
-      <CardFooter>
-        <div className='flex gap-4 flex-wrap'>
-          {(
-            [
-              0,
-              1,
-              2,
-              3,
-              4,
-              5,
-              6,
-              7,
-              8,
-              9,
-              '.',
-              '+',
-              '-',
-              '*',
-              '/',
-              '^',
-              '=',
-            ] as const
-          ).map((input) => (
-            <Button key={input} onClick={onInput(input)}>
-              {input}
-            </Button>
-          ))}
-        </div>
-      </CardFooter>
     </Card>
   )
+}
+
+const Panel = ({ children }: PropsWithChildren) => {
+  return <>{children}</>
+}
+
+const Keypad = () => {
+  return <div>Keypad</div>
 }
