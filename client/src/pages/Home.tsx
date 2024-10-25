@@ -1,5 +1,4 @@
-import { useNavigate } from 'react-router-dom'
-import { useGetCardsLayout, usePostCardsLayout, usePostLogout } from '@/api'
+import { useGetCardsLayout, usePostCardsLayout } from '@/api'
 import { Button } from '@/utils/button'
 import {
   createContext,
@@ -15,6 +14,7 @@ import {
 import Calculator from '@/cards/calculator'
 import { create } from 'zustand'
 import type { UnionToIntersection } from 'node_modules/react-hook-form/dist/types/path/common'
+import useLogout from '@/utils/logout'
 
 export type CardProps<S = {}> = {
   state?: S
@@ -162,20 +162,40 @@ const useCards = () => {
   const resize = useResize()
   const init = useCardsStore((state) => state.init)
   const cards = useCardsStore((state) => state.cards)
-  const { data: serverCards } = useGetCardsLayout(null)
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(
-    resize(() => {
-      if (serverCards) {
-        init(serverCards.map(({ name, id }) => ({ name, id })))
-      }
-    }),
-    [serverCards]
+  useGetCardsLayout(
+    resize((serverCards) =>
+      init(serverCards.map(({ name, id }) => ({ name, id })))
+    )
   )
 
   return cards
 }
+
+const cardsToJsx = (cards: Card[]) =>
+  cards.map(({ name, state, id }, pos) => {
+    const Card = CARDS[name]
+    const setState = getSetCardState(name, id)
+    return (
+      <div className='card' key={pos}>
+        <CardContext.Provider value={{ pos }}>
+          {/* typescript can't narrow the card state */}
+          <Card
+            state={
+              state as UnionToIntersection<CardStates[typeof name]> | undefined
+            }
+            setState={
+              setState as UnionToIntersection<
+                {
+                  [N in CardName]: SetCardState<N>
+                }[CardName]
+              >
+            }
+          />
+        </CardContext.Provider>
+      </div>
+    )
+  })
 
 export const useResize = () => useCardsStore((state) => state.resize)
 
@@ -236,61 +256,23 @@ const useAddCard = () => {
 }
 
 export default function Home() {
-  const navigate = useNavigate()
-  const { mutate: postLogout } = usePostLogout()
+  const logout = useLogout()
+  const cards = cardsToJsx(useCards())
   const cardsRef = useRef<HTMLDivElement>(null)
   const addCard = useAddCard()
-  const cards = useCards()
-  const cardElements = cards.map(({ name, state, id }, pos) => {
-    const Card = CARDS[name]
-    const setState = getSetCardState(name, id)
-    return (
-      <div className='card' key={pos}>
-        <CardContext.Provider value={{ pos }}>
-          {/* typescript can't narrow the card state */}
-          <Card
-            state={
-              state as UnionToIntersection<CardStates[typeof name]> | undefined
-            }
-            setState={
-              setState as UnionToIntersection<
-                {
-                  [N in CardName]: SetCardState<N>
-                }[CardName]
-              >
-            }
-          />
-        </CardContext.Provider>
-      </div>
-    )
-  })
 
   useResizer(cardsRef)
 
   return (
     <div className='h-[100vh] flex flex-col items-center gap-20'>
       <div className='flex justify-evenly'>
-        <div className='flex justify-center'>
-          <Button
-            size='md'
-            onClick={() =>
-              postLogout(null, {
-                onSuccess: () => {
-                  localStorage.removeItem('token')
-                  navigate('/login')
-                },
-              })
-            }
-          >
-            Logout
-          </Button>
-        </div>
+        <div className='flex justify-center'>{logout}</div>
       </div>
       <div
         ref={cardsRef}
         className='px-8 max-w-[calc(min(100vw,1400px))] grid grid-cols-[repeat(auto-fill,400px)] auto-rows-[10px] justify-center items-start gap-x-8 gap-y-4'
       >
-        {cardElements}
+        {cards}
       </div>
       <footer className='flex gap-4'>
         {CARD_NAMES.map((name) => (

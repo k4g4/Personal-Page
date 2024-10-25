@@ -16,12 +16,15 @@ const handleResponse = async <Res extends z.ZodTypeAny>(
   schema: Res | undefined,
   location: Location<any>,
   navigate: NavigateFunction,
-  updateError: UpdateError
+  updateError: UpdateError,
+  cb?: (res: z.infer<Res>) => void
 ) => {
   if (res.ok) {
     if (schema) {
       try {
-        return schema.parse(await res.json()) as z.infer<Res>
+        const resSchema = schema.parse(await res.json()) as z.infer<Res>
+        cb?.(resSchema)
+        return resSchema
       } catch (err) {
         if (err instanceof z.ZodError) {
           updateError('Invalid response', err.issues.at(0)?.message ?? '')
@@ -38,7 +41,10 @@ const handleResponse = async <Res extends z.ZodTypeAny>(
 }
 
 const query = <Req = null>(endpoint: Endpoint) => {
-  return <Res extends z.ZodTypeAny>(schema?: Res) =>
+  return <Res extends z.ZodTypeAny>(
+      schema?: Res,
+      cb?: (res: z.infer<Res>) => void
+    ) =>
     (req: Req) => {
       const location = useLocation()
       const navigate = useNavigate()
@@ -53,7 +59,14 @@ const query = <Req = null>(endpoint: Endpoint) => {
         queryKey: ['get', endpoint, req],
         queryFn: async ({ signal }) => {
           const res = await fetch(url, { signal, method: 'get', headers })
-          return handleResponse(res, schema, location, navigate, updateError)
+          return handleResponse(
+            res,
+            schema,
+            location,
+            navigate,
+            updateError,
+            cb
+          )
         },
       })
     }
@@ -61,7 +74,10 @@ const query = <Req = null>(endpoint: Endpoint) => {
 
 const mutate = <Req = null>(method: 'post' | 'delete', endpoint: Endpoint) => {
   const url = `/api/${endpoint}`
-  return <Res extends z.ZodTypeAny>(schema?: Res) =>
+  return <Res extends z.ZodTypeAny>(
+      schema?: Res,
+      cb?: (res: z.infer<Res>) => void
+    ) =>
     () => {
       const location = useLocation()
       const navigate = useNavigate()
@@ -90,7 +106,14 @@ const mutate = <Req = null>(method: 'post' | 'delete', endpoint: Endpoint) => {
                     }
                   : options
               ))
-          return handleResponse(res, schema, location, navigate, updateError)
+          return handleResponse(
+            res,
+            schema,
+            location,
+            navigate,
+            updateError,
+            cb
+          )
         },
       })
     }
@@ -144,5 +167,6 @@ export const usePostLogin = mutate<Credentials>('post', 'login')(token)
 export const usePostSignup = mutate<Credentials>('post', 'signup')(token)
 export const usePostLogout = mutate('post', 'logout')()
 
-export const useGetCardsLayout = query('cards')(cardsLayout)
+export const useGetCardsLayout = (cb: (res: CardsLayout) => void) =>
+  query('cards')(cardsLayout, cb)(null)
 export const usePostCardsLayout = mutate<CardsLayout>('post', 'cards')()
