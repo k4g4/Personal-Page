@@ -183,9 +183,7 @@ const useResizer = (cardsRef: RefObject<HTMLDivElement>) => {
   const resizeSignal = useCardsStore((state) => state.resizeSignal)
 
   useEffect(() => {
-    console.log('in effect!')
     if (cardsRef.current) {
-      console.log('running effect!')
       const style = getComputedStyle(cardsRef.current)
       const rowHeight = parseInt(style.getPropertyValue('grid-auto-rows'))
       const rowGap = parseInt(style.getPropertyValue('grid-row-gap'))
