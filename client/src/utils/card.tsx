@@ -33,8 +33,8 @@ const CardTitle = forwardRef<
   HTMLParagraphElement,
   HTMLAttributes<HTMLHeadingElement>
 >(({ className, ...props }, ref) => {
-  const resize = useResize()
   const { moveDown, moveUp, remove } = useCardActions()
+
   return (
     <div ref={ref} className='flex justify-between'>
       {/*eslint-disable jsx-a11y/heading-has-content */}
@@ -45,17 +45,17 @@ const CardTitle = forwardRef<
       <div className='flex justify-between gap-4'>
         <FontAwesomeIcon
           className='cursor-pointer'
-          onClick={resize(moveDown)}
+          onClick={moveDown}
           icon={faAngleDown}
         />
         <FontAwesomeIcon
           className='cursor-pointer'
-          onClick={resize(moveUp)}
+          onClick={moveUp}
           icon={faAngleUp}
         />
         <FontAwesomeIcon
           className='cursor-pointer'
-          onClick={resize(remove)}
+          onClick={remove}
           icon={faXmark}
         />
       </div>

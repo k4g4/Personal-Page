@@ -15,8 +15,10 @@ use axum::{
 };
 use sqlx::{
     error::{Error as SqlxError, ErrorKind},
-    query, query_as, QueryBuilder, SqlitePool,
+    query, query_as, Connection, QueryBuilder, SqlitePool,
 };
+use std::fmt::Debug;
+use tracing::error;
 
 trait IntoApiResult {
     type Result;
@@ -33,10 +35,11 @@ trait MapServerError {
     type Output;
     fn map_server_err(self, error: impl IntoResponse) -> Self::Output;
 }
-impl<T, E> MapServerError for Result<T, E> {
+impl<T, E: Debug> MapServerError for Result<T, E> {
     type Output = Result<T, ErrorResponse>;
     fn map_server_err(self, error: impl IntoResponse) -> Self::Output {
-        self.map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, error).into())
+        self.inspect_err(|err| error!("Internal error: {err:?}"))
+            .map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, error).into())
     }
 }
 
@@ -179,22 +182,31 @@ routes! {
             .map(|(i, api::Card { name, id })| Ok((i, serde_json::to_string(&name).map_server_err(error)?, id)))
             .collect::<Result<Vec<_>, ErrorResponse>>()?;
 
-        query!("DELETE FROM cards WHERE user_id = ?", user).execute(&pool).await.map_server_err(error)?;
+        let mut conn = pool.acquire().await.map_server_err(error)?;
 
-        QueryBuilder::new("INSERT INTO cards (id, user_id, name, client_id, pos)")
-            .push_values(values, |mut values_builder, (pos, name, id)| {
-                values_builder
-                    .push_bind(CardId::default())
-                    .push_bind(user)
-                    .push_bind(name)
-                    .push_bind(id)
-                    .push_bind(pos as i64);
-            })
-            .build()
-            .persistent(false) // don't cache dynamically sized query
-            .execute(&pool)
-            .await
-            .map_server_err(error)?;
+        conn.transaction(|transact| Box::pin(async move {
+            let conn = &mut **transact;
+
+            query!("DELETE FROM cards WHERE user_id = ?", user).execute(conn).await?;
+
+            if !values.is_empty() {
+                QueryBuilder::new("INSERT INTO cards (id, user_id, name, client_id, pos)")
+                    .push_values(values, |mut values_builder, (pos, name, id)| {
+                        values_builder
+                            .push_bind(CardId::default())
+                            .push_bind(user)
+                            .push_bind(name)
+                            .push_bind(id)
+                            .push_bind(pos as i64);
+                    })
+                    .build()
+                    .persistent(false) // don't cache dynamically sized query
+                    .execute(&mut **transact)
+                    .await?;
+            }
+
+            Result::<_, SqlxError>::Ok(())
+        })).await.map_server_err(error)?;
 
         Ok(())
     }

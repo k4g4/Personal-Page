@@ -10,6 +10,7 @@ import {
   type ComponentProps,
   type FC,
   type ExoticComponent,
+  type RefObject,
 } from 'react'
 import Calculator from '@/cards/calculator'
 import { create } from 'zustand'
@@ -56,9 +57,9 @@ type SetCardState<N extends CardName> = CardProps<CardStates[N]>['setState']
 type CardsStore = {
   cards: Card[]
   init: (cards: Card[]) => void
-  moveDown: (n: number) => void
-  moveUp: (n: number) => void
-  remove: (n: number) => void
+  moveDown: (pos: number) => void
+  moveUp: (pos: number) => void
+  remove: (pos: number) => void
   setState: <N extends CardName>(name: N, id: number) => SetCardState<N>
   addCard: (name: CardName) => void
 }
@@ -157,18 +158,6 @@ const getSetCardState = <N extends CardName>(name: N, id: number) =>
 
 const CardContext = createContext({ pos: 0 })
 
-export const useCardActions = () => {
-  const { pos } = useContext(CardContext)
-  const moveDown = useCardsStore((state) => state.moveDown)
-  const moveUp = useCardsStore((state) => state.moveUp)
-  const remove = useCardsStore((state) => state.remove)
-  return {
-    moveDown: () => moveDown(pos),
-    moveUp: () => moveUp(pos),
-    remove: () => remove(pos),
-  }
-}
-
 const useCards = () => {
   const resize = useResize()
   const init = useCardsStore((state) => state.init)
@@ -179,11 +168,7 @@ const useCards = () => {
   useEffect(
     resize(() => {
       if (serverCards) {
-        init(
-          serverCards.length
-            ? serverCards.map(({ name, id }) => ({ name, id }))
-            : CARD_NAMES.map((name) => ({ name, id: 0 }))
-        )
+        init(serverCards.map(({ name, id }) => ({ name, id })))
       }
     }),
     [serverCards]
@@ -194,14 +179,69 @@ const useCards = () => {
 
 export const useResize = () => useCardsStore((state) => state.resize)
 
+const useResizer = (cardsRef: RefObject<HTMLDivElement>) => {
+  const resizeSignal = useCardsStore((state) => state.resizeSignal)
+
+  useEffect(() => {
+    console.log('in effect!')
+    if (cardsRef.current) {
+      console.log('running effect!')
+      const style = getComputedStyle(cardsRef.current)
+      const rowHeight = parseInt(style.getPropertyValue('grid-auto-rows'))
+      const rowGap = parseInt(style.getPropertyValue('grid-row-gap'))
+
+      cardsRef.current
+        .querySelectorAll<HTMLDivElement>('.card')
+        .forEach((card) => {
+          const span = Math.ceil(
+            (card.getBoundingClientRect().height + rowGap) /
+              (rowHeight + rowGap)
+          )
+          card.style.gridRowEnd = `span ${span}`
+        })
+    }
+  }, [cardsRef, resizeSignal])
+}
+
+export const useCardActions = () => {
+  const { pos } = useContext(CardContext)
+  const resize = useResize()
+  const { mutate } = usePostCardsLayout()
+
+  const moveDown = useCardsStore((state) => state.moveDown)
+  const moveUp = useCardsStore((state) => state.moveUp)
+  const remove = useCardsStore((state) => state.remove)
+
+  const newAction = (action: (pos: number) => void) =>
+    resize(() => {
+      action(pos)
+      mutate(useCardsStore.getState().cards)
+    })
+
+  return {
+    moveDown: newAction(moveDown),
+    moveUp: newAction(moveUp),
+    remove: newAction(remove),
+  }
+}
+
+const useAddCard = () => {
+  const resize = useResize()
+  const addCard = useCardsStore((state) => state.addCard)
+  const { mutate } = usePostCardsLayout()
+
+  return (name: CardName) =>
+    resize(() => {
+      addCard(name)
+      mutate(useCardsStore.getState().cards)
+    })
+}
+
 export default function Home() {
   const navigate = useNavigate()
   const { mutate: postLogout } = usePostLogout()
-  const { mutate: postCardsLayout } = usePostCardsLayout()
   const cardsRef = useRef<HTMLDivElement>(null)
-  const resize = useResize()
-  const resizeSignal = useCardsStore((state) => state.resizeSignal)
-  const addCard = useCardsStore((state) => state.addCard)
+  const addCard = useAddCard()
   const cards = useCards()
   const cardElements = cards.map(({ name, state, id }, pos) => {
     const Card = CARDS[name]
@@ -209,7 +249,7 @@ export default function Home() {
     return (
       <div className='card' key={pos}>
         <CardContext.Provider value={{ pos }}>
-          {/* typescript can't narrow the card state, but we know it's correct */}
+          {/* typescript can't narrow the card state */}
           <Card
             state={
               state as UnionToIntersection<CardStates[typeof name]> | undefined
@@ -227,23 +267,7 @@ export default function Home() {
     )
   })
 
-  useEffect(() => {
-    if (cardsRef.current) {
-      const style = getComputedStyle(cardsRef.current)
-      const rowHeight = parseInt(style.getPropertyValue('grid-auto-rows'))
-      const rowGap = parseInt(style.getPropertyValue('grid-row-gap'))
-
-      cardsRef.current
-        .querySelectorAll<HTMLDivElement>('.card')
-        .forEach((card) => {
-          const span = Math.ceil(
-            (card.getBoundingClientRect().height + rowGap) /
-              (rowHeight + rowGap)
-          )
-          card.style.gridRowEnd = `span ${span}`
-        })
-    }
-  }, [resizeSignal])
+  useResizer(cardsRef)
 
   return (
     <div className='h-[100vh] flex flex-col items-center gap-20'>
@@ -262,9 +286,6 @@ export default function Home() {
           >
             Logout
           </Button>
-          <Button size='md' onClick={() => postCardsLayout(cards)}>
-            Save
-          </Button>
         </div>
       </div>
       <div
@@ -275,7 +296,7 @@ export default function Home() {
       </div>
       <footer className='flex gap-4'>
         {CARD_NAMES.map((name) => (
-          <Button key={name} onClick={resize(() => addCard(name))}>
+          <Button key={name} onClick={addCard(name)}>
             {displayCardName(name)}
           </Button>
         ))}
